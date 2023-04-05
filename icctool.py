@@ -621,9 +621,6 @@ def remove_copyright(profile, debug):
     for offset in final_offset_removal_list:
         elements_savings += len(profile.elements[offset].pack())
         del profile.elements[offset]
-    # TODO: move this to the pack() function
-    # 4. fix space saved
-    profile.header.profile_size -= tag_table_savings + elements_savings
     return profile
 
 
@@ -654,8 +651,13 @@ def write_icc_profile(profile, outfile, debug):
             offset,
             size,
         )
-    # 4. put everything together
+    # 4. re-pack the header
     total_bytes = header_bytes + tag_table_bytes + elements_bytes
+    profile.header.profile_size = len(total_bytes)
+    header_bytes = profile.header.pack()
+    total_bytes = header_bytes + tag_table_bytes + elements_bytes
+
+    # 5. write back the full profile
     with open(outfile, "wb+") as fout:
         fout.write(total_bytes)
 
