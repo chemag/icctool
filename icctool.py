@@ -701,7 +701,7 @@ class ICCProfile:
         out += f"{prefix}]"
         out += f"{prefix}elements {{"
         for offset, tag in self.elements.items():
-            out += f"{prefix}{offset}: {tag.tostring()}"
+            out += f"{prefix}0x{offset:04x}: {tag.tostring()}"
         out += f"{prefix}}}"
         return out
 
