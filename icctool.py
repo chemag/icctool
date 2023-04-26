@@ -212,6 +212,7 @@ class ICCHeader:
 
 
 TAG_TYPE = [
+    "textType",
     "textDescriptionType",
     "multiLocalizedUnicodeType",
     "XYZType",
@@ -270,6 +271,30 @@ class ICCTag:
             return self.pack_curveType()
         elif self.tag_type == "parametricCurveType":
             return self.pack_parametricCurveType()
+
+    @classmethod
+    def parse_textType(cls, blob):
+        tag = ICCTag("textType")
+        tag.size = len(blob)
+        i = 0
+        tag.signature = blob[i : i + 4].decode("ascii")
+        assert "text" == tag.signature, f"invalid textType signature ({tag.signature})"
+        i += 4
+        tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        tag.text = blob[i:].decode("ascii")
+        return tag
+
+    def pack_textType(self):
+        # TODO: implement this
+        pass
+
+    def str_textType(self):
+        out = ""
+        out += f" signature: '{self.signature}'"
+        out += f" reserved: {self.reserved}"
+        out += f" text: {self.text}"
+        return out
 
     @classmethod
     def parse_textDescriptionType(cls, blob):
