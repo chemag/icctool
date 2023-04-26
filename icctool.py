@@ -228,7 +228,13 @@ class ICCTag:
         self.tag_type = tag_type
 
     @classmethod
-    def parse(cls, signature, blob):
+    def parse(cls, signature, blob, header):
+        if header.profile_version_number[0:2] == (2, 4):
+            # version 2.4.0
+            if signature in ("desc", "dmnd", "dmdd", "scrd", "vued"):
+                return cls.parse_textDescriptionType(blob)
+            elif signature in ("cprt", "targ"):
+                return cls.parse_textType(blob)
         if signature in ("cprt", "dmnd", "dmdd", "desc", "vued"):
             return cls.parse_multiLocalizedUnicodeType(blob)
         elif signature in ("bXYZ", "gXYZ", "lumi", "bkpt", "wtpt", "rXYZ"):
@@ -257,6 +263,10 @@ class ICCTag:
             out += self.str_curveType()
         elif self.tag_type == "parametricCurveType":
             out += self.str_parametricCurveType()
+        elif self.tag_type == "textDescriptionType":
+            out += self.str_textDescriptionType()
+        elif self.tag_type == "textType":
+            out += self.str_textType()
         out += " }"
         return out
 
@@ -271,6 +281,10 @@ class ICCTag:
             return self.pack_curveType()
         elif self.tag_type == "parametricCurveType":
             return self.pack_parametricCurveType()
+        elif self.tag_type == "textDescriptionType":
+            return self.pack_textDescriptionType()
+        elif self.tag_type == "textType":
+            return self.pack_textType()
 
     @classmethod
     def parse_textType(cls, blob):
@@ -645,7 +659,7 @@ class ICCProfile:
             i += 4
             # parse tagged element data
             profile.tag_table.append((signature, offset))
-            tag = ICCTag.parse(signature, blob[offset : offset + size])
+            tag = ICCTag.parse(signature, blob[offset : offset + size], profile.header)
             profile.elements[offset] = tag
         return profile
 
