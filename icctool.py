@@ -19,6 +19,7 @@ default_values = {
     "debug": 0,
     "remove_copyright": False,
     "print": False,
+    "as_one_line": True,
     "write": False,
     "infile": None,
     "outfile": None,
@@ -128,26 +129,27 @@ class ICCHeader:
         # assert 0x00 == reserved, "invalid icc header"  # TODO
         return header, i
 
-    def __str__(self):
+    def tostring(self, as_one_line):
+        prefix = " " if as_one_line else "\n"
         return (
-            f"profile_size: 0x{self.profile_size:x}"
-            f" preferred_cmm_type: {self.preferred_cmm_type}"
-            f" profile_version_number: {self.str_VersionNumber()}"
-            f" profile_device_class: '{self.profile_device_class}'"
-            f" color_space: '{self.color_space}'"
-            f" profile_connection_space: '{self.profile_connection_space}'"
-            f" date_and_time: {self.str_dateTimeNumber()}"
-            f" profile_file_signature: '{self.profile_file_signature}'"
-            f" primary_platform_signature: '{self.primary_platform_signature}'"
-            f" profile_flags: {self.profile_flags}"
-            f" device_manufacturer: 0x{self.device_manufacturer:x}"
-            f" device_model: {self.device_model}"
-            f" device_attributes: {self.device_attributes}"
-            f" rendering_intent: {self.rendering_intent}"
-            f" xyz_illuminant: {self.xyz_illuminant}"
-            f" profile_creator_field: {self.profile_creator_field}"
-            f" profile_id: {self.profile_id}"
-            f" reserved: {self.reserved}"
+            f"{prefix}profile_size: 0x{self.profile_size:x}"
+            f"{prefix}preferred_cmm_type: {self.preferred_cmm_type}"
+            f"{prefix}profile_version_number: {self.str_VersionNumber()}"
+            f"{prefix}profile_device_class: '{self.profile_device_class}'"
+            f"{prefix}color_space: '{self.color_space}'"
+            f"{prefix}profile_connection_space: '{self.profile_connection_space}'"
+            f"{prefix}date_and_time: {self.str_dateTimeNumber()}"
+            f"{prefix}profile_file_signature: '{self.profile_file_signature}'"
+            f"{prefix}primary_platform_signature: '{self.primary_platform_signature}'"
+            f"{prefix}profile_flags: {self.profile_flags}"
+            f"{prefix}device_manufacturer: 0x{self.device_manufacturer:x}"
+            f"{prefix}device_model: {self.device_model}"
+            f"{prefix}device_attributes: {self.device_attributes}"
+            f"{prefix}rendering_intent: {self.rendering_intent}"
+            f"{prefix}xyz_illuminant: {self.xyz_illuminant}"
+            f"{prefix}profile_creator_field: {self.profile_creator_field}"
+            f"{prefix}profile_id: {self.profile_id}"
+            f"{prefix}reserved: {self.reserved}"
         )
 
     def pack(self):
@@ -226,7 +228,7 @@ class ICCTag:
                 return cls.parse_parametricCurveType(blob)
         raise f"INVALID SIGNATURE: {signature}"
 
-    def __str__(self):
+    def tostring(self):
         out = "tag {"
         out += f" size: {self.size}"
         if self.signature == "mluc":
@@ -567,22 +569,23 @@ class ICCProfile:
             size += tag.size
         return size
 
-    def __str__(self):
+    def tostring(self, as_one_line=False):
+        prefix = " " if as_one_line else "\n"
         out = ""
-        out += str(self.header)
-        out += f" tag_count: {self.tag_count}"
-        out += " tag_table ["
+        out += self.header.tostring(as_one_line)
+        out += f"{prefix}tag_count: {self.tag_count}"
+        out += f"{prefix}tag_table ["
         for tag_index in range(self.tag_count):
             signature, offset = self.tag_table[tag_index]
-            out += " ("
+            out += f"{prefix}("
             out += f" signature: '{signature}'"
             out += f" offset: 0x{offset:x}"
             out += " )"
-        out += " ]"
-        out += " elements {"
+        out += f"{prefix}]"
+        out += f"{prefix}elements {{"
         for offset, tag in self.elements.items():
-            out += f" {offset}: {tag}"
-        out += " }"
+            out += f"{prefix}{offset}: {tag.tostring()}"
+        out += f"{prefix}}}"
         return out
 
 
@@ -707,6 +710,21 @@ def get_options(argv):
         help="Print input ICC profile in text format",
     )
     parser.add_argument(
+        "--as-one-line",
+        dest="as_one_line",
+        action="store_true",
+        default=default_values["as_one_line"],
+        help="Print output as one line%s"
+        % (" [default]" if default_values["as_one_line"] else ""),
+    )
+    parser.add_argument(
+        "--noas-one-line",
+        dest="as_one_line",
+        action="store_false",
+        help="Print output as one line%s"
+        % (" [default]" if not default_values["as_one_line"] else ""),
+    )
+    parser.add_argument(
         "--write",
         dest="write",
         action="store_true",
@@ -747,7 +765,7 @@ def main(argv):
     profile = parse_icc_profile(options.infile, options.debug)
     if options.print:
         # dump contents
-        print(profile)
+        print(profile.tostring(options.as_one_line))
     if options.remove_copyright:
         # remove copyrights
         profile = remove_copyright(profile, options.debug)
