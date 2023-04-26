@@ -212,6 +212,7 @@ class ICCHeader:
 
 
 TAG_TYPE = [
+    "textDescriptionType",
     "multiLocalizedUnicodeType",
     "XYZType",
     "s15Fixed16ArrayType",
@@ -269,6 +270,57 @@ class ICCTag:
             return self.pack_curveType()
         elif self.tag_type == "parametricCurveType":
             return self.pack_parametricCurveType()
+
+    @classmethod
+    def parse_textDescriptionType(cls, blob):
+        tag = ICCTag("textDescriptionType")
+        tag.size = len(blob)
+        i = 0
+        tag.signature = blob[i : i + 4].decode("ascii")
+        assert (
+            "desc" == tag.signature
+        ), f"invalid textDescriptionType signature ({tag.signature})"
+        i += 4
+        tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        tag.ascii_length = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        tag.ascii_invariant_description = (
+            struct.unpack(f">{tag.ascii_length}s", blob[i : i + tag.ascii_length])[0]
+            .decode("ascii")
+            .strip("\x00")
+        )
+        i += tag.ascii_length
+        tag.unicode_language_code = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        tag.unicode_length = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        tag.unicode_localizable_description = blob[i : i + tag.unicode_length]
+        i += tag.unicode_length
+        tag.scriptcode_code = struct.unpack(">H", blob[i : i + 2])[0]
+        i += 2
+        tag.macintosh_length = struct.unpack(">B", blob[i : i + 1])[0]
+        i += 1
+        tag.macintosh_description = blob[i : i + 67]
+        i += 67
+        # keep the remaining buffer
+        tag.rem = blob[i:]
+        return tag
+
+    def pack_textDescriptionType(self):
+        # TODO: implement this
+        pass
+
+    def str_textDescriptionType(self):
+        out = ""
+        out += f" signature: '{self.signature}'"
+        out += f" reserved: {self.reserved}"
+        out += f' ascii_invariant_description: "{self.ascii_invariant_description}"'
+        out += f" unicode_language_code: {self.unicode_language_code}"
+        out += (
+            f" unicode_localizable_description: {self.unicode_localizable_description}"
+        )
+        return out
 
     @classmethod
     def parse_multiLocalizedUnicodeType(cls, blob):
