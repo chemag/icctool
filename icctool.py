@@ -211,7 +211,20 @@ class ICCHeader:
         return header
 
 
+TAG_TYPE = [
+    "multiLocalizedUnicodeType",
+    "XYZType",
+    "s15Fixed16ArrayType",
+    "curveType",
+    "parametricCurveType",
+]
+
+
 class ICCTag:
+    def __init__(self, tag_type):
+        assert tag_type in TAG_TYPE, f"error: invalid tag type: {tag_type}"
+        self.tag_type = tag_type
+
     @classmethod
     def parse(cls, signature, blob):
         if signature in ("cprt", "dmnd", "dmdd", "desc", "vued"):
@@ -230,41 +243,42 @@ class ICCTag:
 
     def tostring(self):
         out = "tag {"
+        out += f" type: {self.tag_type}"
         out += f" size: {self.size}"
-        if self.signature == "mluc":
+        if self.tag_type == "multiLocalizedUnicodeType":
             out += self.str_multiLocalizedUnicodeType()
-        elif self.signature == "XYZ ":
+        elif self.tag_type == "XYZType":
             out += self.str_XYZType()
-        elif self.signature == "sf32":
+        elif self.tag_type == "s15Fixed16ArrayType":
             out += self.str_s15Fixed16ArrayType()
-        elif self.signature == "curv":
+        elif self.tag_type == "curveType":
             out += self.str_curveType()
-        elif self.signature == "para":
+        elif self.tag_type == "parametricCurveType":
             out += self.str_parametricCurveType()
         out += " }"
         return out
 
     def pack(self):
-        if self.signature == "mluc":
+        if self.tag_type == "multiLocalizedUnicodeType":
             return self.pack_multiLocalizedUnicodeType()
-        elif self.signature == "XYZ ":
+        elif self.tag_type == "XYZType":
             return self.pack_XYZType()
-        elif self.signature == "sf32":
+        elif self.tag_type == "s15Fixed16ArrayType":
             return self.pack_s15Fixed16ArrayType()
-        elif self.signature == "curv":
+        elif self.tag_type == "curveType":
             return self.pack_curveType()
-        elif self.signature == "para":
+        elif self.tag_type == "parametricCurveType":
             return self.pack_parametricCurveType()
 
     @classmethod
     def parse_multiLocalizedUnicodeType(cls, blob):
-        tag = ICCTag()
+        tag = ICCTag("multiLocalizedUnicodeType")
         tag.size = len(blob)
         i = 0
         tag.signature = blob[i : i + 4].decode("ascii")
         assert (
             "mluc" == tag.signature
-        ), f"invalid multiLocalizedUnicodeTyp signature ({tag.signature})"
+        ), f"invalid multiLocalizedUnicodeType signature ({tag.signature})"
         i += 4
         tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
         i += 4
@@ -375,7 +389,7 @@ class ICCTag:
 
     @classmethod
     def parse_XYZType(cls, blob):
-        tag = ICCTag()
+        tag = ICCTag("XYZType")
         tag.size = len(blob)
         i = 0
         tag.signature = blob[i : i + 4].decode("ascii")
@@ -428,7 +442,7 @@ class ICCTag:
 
     @classmethod
     def parse_s15Fixed16ArrayType(cls, blob):
-        tag = ICCTag()
+        tag = ICCTag("s15Fixed16ArrayType")
         tag.size = len(blob)
         i = 0
         tag.signature = blob[i : i + 4].decode("ascii")
@@ -471,7 +485,7 @@ class ICCTag:
 
     @classmethod
     def parse_parametricCurveType(cls, blob):
-        tag = ICCTag()
+        tag = ICCTag("parametricCurveType")
         tag.size = len(blob)
         i = 0
         tag.signature = blob[i : i + 4].decode("ascii")
