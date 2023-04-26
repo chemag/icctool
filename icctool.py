@@ -20,6 +20,7 @@ default_values = {
     "remove_copyright": False,
     "print": False,
     "as_one_line": True,
+    "force_version_number": None,
     "write": False,
     "infile": None,
     "outfile": None,
@@ -47,8 +48,17 @@ class ICCHeader:
         major, minor, bug_fix, rem = self.profile_version_number
         return f"{major}.{minor}.{bug_fix}"
 
+    def set_VersionNumber(self, version_str):
+        major, minor, bug_fix = [int(v) for v in version_str.split(".")]
+        rem = 0
+        self.profile_version_number = (major, minor, bug_fix, rem)
+
     def pack_VersionNumber(self):
         major, minor, bug_fix, rem = self.profile_version_number
+        return self.dopack_VersionNumber(major, minor, bug_fix, rem)
+
+    @classmethod
+    def dopack_VersionNumber(cls, major, minor, bug_fix, rem):
         version_number_format = "!BBH"
         second_byte = (minor << 4) | bug_fix
         version_number = struct.pack(version_number_format, major, second_byte, rem)
@@ -84,7 +94,7 @@ class ICCHeader:
         return date_and_time
 
     @classmethod
-    def parse(cls, blob):
+    def parse(cls, blob, force_version_number):
         header = ICCHeader()
         i = 0
         header.profile_size = struct.unpack(">I", blob[i : i + 4])[0]
@@ -93,6 +103,8 @@ class ICCHeader:
         i += 4
         header.profile_version_number = cls.parse_VersionNumber(blob[i : i + 4])
         i += 4
+        if force_version_number is not None:
+            header.set_VersionNumber(force_version_number)
         header.profile_device_class = blob[i : i + 4].decode("ascii")
         i += 4
         header.color_space = blob[i : i + 4].decode("ascii")
@@ -641,10 +653,10 @@ class ICCTag:
 
 class ICCProfile:
     @classmethod
-    def parse(cls, blob):
+    def parse(cls, blob, force_version_number):
         # parse header
         profile = ICCProfile()
-        profile.header, i = ICCHeader.parse(blob)
+        profile.header, i = ICCHeader.parse(blob, force_version_number)
         # parse tag table
         profile.tag_count = struct.unpack(">I", blob[i : i + 4])[0]
         i += 4
@@ -694,14 +706,14 @@ class ICCProfile:
         return out
 
 
-def parse_icc_profile(infile, debug):
+def parse_icc_profile(infile, force_version_number, debug):
     marker_list = []
     # open infile
     if debug > 0:
         print("\nfile: %s" % infile)
     with open(infile, "rb") as fin:
         blob = fin.read()
-        profile = ICCProfile.parse(blob)
+        profile = ICCProfile.parse(blob, force_version_number)
     return profile
 
 
@@ -815,6 +827,14 @@ def get_options(argv):
         help="Print input ICC profile in text format",
     )
     parser.add_argument(
+        "--force-version-number",
+        action="store",
+        dest="force_version_number",
+        default=default_values["force_version_number"],
+        metavar="FORCED-VERSION-NUMBER",
+        help="force version number",
+    )
+    parser.add_argument(
         "--as-one-line",
         dest="as_one_line",
         action="store_true",
@@ -867,7 +887,9 @@ def main(argv):
     if options.debug > 0:
         print(options)
     # parse input profile
-    profile = parse_icc_profile(options.infile, options.debug)
+    profile = parse_icc_profile(
+        options.infile, options.force_version_number, options.debug
+    )
     if options.print:
         # dump contents
         print(profile.tostring(options.as_one_line))
