@@ -234,58 +234,62 @@ TAG_TYPE = [
     "parametricCurveType",
 ]
 
-# tag: (signature, permited_tag_types)
-# AToB0Tag: ("A2B0", (lut8Type, lut16Type, lutAToBType,))
-# AToB1Tag: ("A2B1", (lut8Type, lut16Type, lutAToBType,))
-# AToB2Tag: ("A2B2", (lut8Type, lut16Type, lutAToBType,))
-# blueMatrixColumnTag: ("bXYZ", (XYZType,))
-# blueTRCTag: ("bTRC", (curveType, parametricCurveType,))
-# BToA0Tag: ("B2A0", (lut8Type, lut16Type, lutBToAType,))
-# BToA1Tag: ("B2A1", (lut8Type, lut16Type, lutBToAType,))
-# BToA2Tag: ("B2A2", (lut8Type, lut16Type, lutBToAType,))
-# BToD0Tag: ("B2D0", (multiProcessElementsType,))
-# BToD1Tag: ("B2D1", (multiProcessElementsType,))
-# BToD2Tag: ("B2D2", (multiProcessElementsType,))
-# BToD3Tag: ("B2D3", (multiProcessElementsType,))
-# calibrationDateTimeTacalibrationDateTimeTag: ("calt", (dateTimeType,))
-# charTargetTag: ("targ", (textType,))
-# chromaticAdaptationTag: ("chad", (s15Fixed16ArrayType,))
-# chromaticityTag: ("chrm", (chromaticityType,))
-# cicpTag: ("cicp", (cicpType,))
-# colorantOrderTag: ("clro", (colorantOrderType,))
-# colorantTableTag: ("clrt", (colorantTableType,))
-# colorantTableOutTag: ("clot", (colorantTableType,))
-# colorimetricIntentImageStateTag: ("ciis", (signatureType,))
-# copyrightTag: ("cprt", (multiLocalizedUnicodeType,))
-# deviceMfgDescTag: ("dmnd", (multiLocalizedUnicodeType,))
-# deviceModelDescTag: ("dmdd", (multiLocalizedUnicodeType,))
-# DToB0Tag: ("D2B0", (multiProcessElementsType,))
-# DToB1Tag: ("D2B1", (multiProcessElementsType,))
-# DToB2Tag: ("D2B2", (multiProcessElementsType,))
-# DToB3Tag: ("D2B3", (multiProcessElementsType,))
-# gamutTag: ("gamt", (lut8Type, lut16Type, lutBToAType,))
-# grayTRCTag: ("kTRC", (curveType, parametricCurveType,))
-# greenMatrixColumnTag: ("gXYZ", (XYZType,))
-# greenTRCTag: ("gTRC", (curveType, parametricCurveType,))
-# luminanceTag: ("lumi", (XYZType,))
-# measurementTag: ("meas", (measurementType,))
-# metadataTag: ("meta", (dictType,))
-# mediaWhitePointTag: ("wtpt", (XYZType,))
-# namedColor2Tag: ("ncl2", (namedColor2Type,))
-# outputResponseTag: ("resp", (responseCurveSet16Type,))
-# perceptualRenderingIntentGamutTag: ("rig0", (signatureType,))
-# preview0Tag: ("pre0", (lut8Type, lut16Type, lutAToBType, lutBToAType,))
-# preview1Tag: ("pre1", (lut8Type, lut16Type, lutBToAType,))
-# preview2Tag: ("pre2", (lut8Type, lut16Type, lutBToAType,))
-# profileDescriptionTag: ("desc", (multiLocalizedUnicodeType,))
-# profileSequenceDescTag: ("pseq", (profileSequenceDescType,))
-# profileSequenceIdentifierTag: ("psid", (profileSequenceIdentifierType,))
-# redMatrixColumnTag: ("rXYZ", (XYZType,))
-# redTRCTag: ("rTRC", (curveType, parametricCurveType,))
-# saturationRenderingIntentGamutTag: ("rig2", (signatureType,))
-# technologyTag: ("tech", (signatureType,))
-# viewingCondDescTag: ("vued", (multiLocalizedUnicodeType,))
-# viewingConditionsTag: ("view", (viewingConditionsType,))
+
+# list including the following elements per entry:
+# (tag_name, tag_signature, (list of allowed tag types))
+TAG_POINTER_TABLE = (
+    ("AToB0Tag", "A2B0", ("lut8Type", "lut16Type", "lutAToBType",)),
+    ("AToB1Tag", "A2B1", ("lut8Type", "lut16Type", "lutAToBType",)),
+    ("AToB2Tag", "A2B2", ("lut8Type", "lut16Type", "lutAToBType",)),
+    ("blueMatrixColumnTag", "bXYZ", ("XYZType",)),
+    ("blueTRCTag", "bTRC", ("curveType", "parametricCurveType",)),
+    ("BToA0Tag", "B2A0", ("lut8Type", "lut16Type", "lutBToAType",)),
+    ("BToA1Tag", "B2A1", ("lut8Type", "lut16Type", "lutBToAType",)),
+    ("BToA2Tag", "B2A2", ("lut8Type", "lut16Type", "lutBToAType",)),
+    ("BToD0Tag", "B2D0", ("multiProcessElementsType",)),
+    ("BToD1Tag", "B2D1", ("multiProcessElementsType",)),
+    ("BToD2Tag", "B2D2", ("multiProcessElementsType",)),
+    ("BToD3Tag", "B2D3", ("multiProcessElementsType",)),
+    ("calibrationDateTimeTacalibrationDateTimeTag", "calt", ("dateTimeType",)),
+    ("charTargetTag", "targ", ("textType",)),
+    ("chromaticAdaptationTag", "chad", ("s15Fixed16ArrayType",)),
+    ("chromaticityTag", "chrm", ("chromaticityType",)),
+    ("cicpTag", "cicp", ("cicpType",)),
+    ("colorantOrderTag", "clro", ("colorantOrderType",)),
+    ("colorantTableTag", "clrt", ("colorantTableType",)),
+    ("colorantTableOutTag", "clot", ("colorantTableType",)),
+    ("colorimetricIntentImageStateTag", "ciis", ("signatureType",)),
+    ("copyrightTag", "cprt", ("multiLocalizedUnicodeType",)),
+    ("deviceMfgDescTag", "dmnd", ("multiLocalizedUnicodeType",)),
+    ("deviceModelDescTag", "dmdd", ("multiLocalizedUnicodeType",)),
+    ("DToB0Tag", "D2B0", ("multiProcessElementsType",)),
+    ("DToB1Tag", "D2B1", ("multiProcessElementsType",)),
+    ("DToB2Tag", "D2B2", ("multiProcessElementsType",)),
+    ("DToB3Tag", "D2B3", ("multiProcessElementsType",)),
+    ("gamutTag", "gamt", ("lut8Type", "lut16Type", "lutBToAType",)),
+    ("grayTRCTag", "kTRC", ("curveType", "parametricCurveType",)),
+    ("greenMatrixColumnTag", "gXYZ", ("XYZType",)),
+    ("greenTRCTag", "gTRC", ("curveType", "parametricCurveType",)),
+    ("luminanceTag", "lumi", ("XYZType",)),
+    ("measurementTag", "meas", ("measurementType",)),
+    ("metadataTag", "meta", ("dictType",)),
+    ("mediaWhitePointTag", "wtpt", ("XYZType",)),
+    ("namedColor2Tag", "ncl2", ("namedColor2Type",)),
+    ("outputResponseTag", "resp", ("responseCurveSet16Type",)),
+    ("perceptualRenderingIntentGamutTag", "rig0", ("signatureType",)),
+    ("preview0Tag", "pre0", ("lut8Type", "lut16Type", "lutAToBType", "lutBToAType",)),
+    ("preview1Tag", "pre1", ("lut8Type", "lut16Type", "lutBToAType",)),
+    ("preview2Tag", "pre2", ("lut8Type", "lut16Type", "lutBToAType",)),
+    ("profileDescriptionTag", "desc", ("multiLocalizedUnicodeType",)),
+    ("profileSequenceDescTag", "pseq", ("profileSequenceDescType",)),
+    ("profileSequenceIdentifierTag", "psid", ("profileSequenceIdentifierType",)),
+    ("redMatrixColumnTag", "rXYZ", ("XYZType",)),
+    ("redTRCTag", "rTRC", ("curveType", "parametricCurveType",)),
+    ("saturationRenderingIntentGamutTag", "rig2", ("signatureType",)),
+    ("technologyTag", "tech", ("signatureType",)),
+    ("viewingCondDescTag", "vued", ("multiLocalizedUnicodeType",)),
+    ("viewingConditionsTag", "view", ("viewingConditionsType",)),
+)
 
 class ICCTag:
     def __init__(self, tag_type):
