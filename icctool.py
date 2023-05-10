@@ -223,18 +223,6 @@ class ICCHeader:
         return header
 
 
-# TODO(chema): refactor this
-TAG_TYPE = [
-    "textType",
-    "textDescriptionType",
-    "multiLocalizedUnicodeType",
-    "XYZType",
-    "s15Fixed16ArrayType",
-    "curveType",
-    "parametricCurveType",
-]
-
-
 # list including the following elements per entry:
 # (tag_name, tag_signature, (list of allowed tag types))
 TAG_POINTER_TABLE = (
@@ -290,6 +278,31 @@ TAG_POINTER_TABLE = (
     ("viewingCondDescTag", "vued", ("multiLocalizedUnicodeType",)),
     ("viewingConditionsTag", "view", ("viewingConditionsType",)),
 )
+
+
+# list including the following elements per entry:
+# (tag_name, tag_signature)
+TAG_ELEMENT_TABLE = (
+    ("textType", "text"),
+    ("textDescriptionType", "desc"),
+    ("multiLocalizedUnicodeType", "mluc"),
+    ("XYZType", "XYZ "),
+    ("s15Fixed16ArrayType", "sf32"),
+    ("curveType", "curv"),
+    ("parametricCurveType", "para"),
+)
+
+
+TAG_TYPE = [
+    "textType",
+    "textDescriptionType",
+    "multiLocalizedUnicodeType",
+    "XYZType",
+    "s15Fixed16ArrayType",
+    "curveType",
+    "parametricCurveType",
+]
+
 
 class ICCTag:
     def __init__(self, tag_type):
