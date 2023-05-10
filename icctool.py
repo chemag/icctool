@@ -304,7 +304,7 @@ class ICCTag:
             return cls.parse_multiLocalizedUnicodeType(blob)
         elif signature in ("bXYZ", "gXYZ", "lumi", "bkpt", "wtpt", "rXYZ"):
             return cls.parse_XYZType(blob)
-        elif signature in ("chad", "gXYZ", "lumi", "bkpt", "wtpt", "rXYZ"):
+        elif signature in ("chad",):
             return cls.parse_s15Fixed16ArrayType(blob)
         elif signature in ("bTRC", "kTRC", "gTRC", "rTRC"):
             signature = blob[0:4].decode("ascii")
