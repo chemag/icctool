@@ -224,8 +224,8 @@ class ICCHeader:
 
 
 # list including the following elements per entry:
-# (tag_name, tag_signature, (list of allowed tag types))
-TAG_POINTER_TABLE = (
+# (tag_name, header_signature, (list of allowed tag types))
+TAG_HEADER_TABLE = (
     ("AToB0Tag", "A2B0", ("lut8Type", "lut16Type", "lutAToBType",)),
     ("AToB1Tag", "A2B1", ("lut8Type", "lut16Type", "lutAToBType",)),
     ("AToB2Tag", "A2B2", ("lut8Type", "lut16Type", "lutAToBType",)),
@@ -281,7 +281,7 @@ TAG_POINTER_TABLE = (
 
 
 # list including the following elements per entry:
-# (tag_name, tag_signature)
+# (tag_name, element_signature)
 TAG_ELEMENT_TABLE = (
     ("textType", "text"),
     ("textDescriptionType", "desc"),
@@ -293,114 +293,98 @@ TAG_ELEMENT_TABLE = (
 )
 
 
-TAG_TYPE = [
-    "textType",
-    "textDescriptionType",
-    "multiLocalizedUnicodeType",
-    "XYZType",
-    "s15Fixed16ArrayType",
-    "curveType",
-    "parametricCurveType",
-]
-
-
 class ICCTag:
-    def __init__(self, tag_type):
-        assert tag_type in TAG_TYPE, f"error: invalid tag type: {tag_type}"
-        self.tag_type = tag_type
+    # produces a dictionary with tag signatures as keys, and names as values
+    @staticmethod
+    def read_tag_header_table(table=TAG_HEADER_TABLE):
+        return {signature: name for (name, signature, _) in table}
+
+    header_table = read_tag_header_table()
+
+    # produces a dictionary with tag signatures as keys, and names as values
+    @staticmethod
+    def read_tag_element_table(table=TAG_ELEMENT_TABLE):
+        return {signature: name for (name, signature) in table}
+
+    element_table = read_tag_element_table()
 
     @classmethod
-    def parse(cls, signature, blob, header):
-        if header.profile_version_number[0:2] == (2, 4):
-            # version 2.4.0
-            if signature in ("desc", "dmnd", "dmdd", "scrd", "vued"):
-                return cls.parse_textDescriptionType(blob)
-            elif signature in ("cprt", "targ"):
-                return cls.parse_textType(blob)
-        if signature in ("cprt", "dmnd", "dmdd", "desc", "vued"):
-            return cls.parse_multiLocalizedUnicodeType(blob)
-        elif signature in ("bXYZ", "gXYZ", "lumi", "bkpt", "wtpt", "rXYZ"):
-            return cls.parse_XYZType(blob)
-        elif signature in ("chad",):
-            return cls.parse_s15Fixed16ArrayType(blob)
-        elif signature in ("bTRC", "kTRC", "gTRC", "rTRC"):
-            signature = blob[0:4].decode("ascii")
-            if signature == "curv":
-                return cls.parse_curveType(blob)
-            elif signature == "para":
-                return cls.parse_parametricCurveType(blob)
-        raise f"INVALID SIGNATURE: {signature}"
+    def parse(cls, header_signature, header_offset, header_size, blob, header):
+        # check whether the tag signature is known
+        assert header_signature in cls.header_table, f'error: invalid tag signature: "{header_signature}"'
+        # get the element signature
+        element_signature = blob[0 : 4].decode("ascii")
+        # check whether there is a valid element parser
+        element_name = cls.element_table[element_signature]
+        parser_name = f"parse_{element_name}"
+        if parser_name in dir(cls):
+            # run the element parser
+            tag = getattr(cls, parser_name)(blob)
+        else:
+            print(f'warning: no parser for tag element: "{element_name}"')
+            tag = cls.parse_UnimplementedType(blob)
+        # add the header info
+        tag.header_signature = header_signature
+        tag.header_offset = header_offset
+        tag.header_size = header_size
+        return tag
 
     def tostring(self):
         out = "tag {"
-        out += f" type: {self.tag_type}"
-        out += f" size: {self.size}"
-        if self.tag_type == "multiLocalizedUnicodeType":
-            out += self.str_multiLocalizedUnicodeType()
-        elif self.tag_type == "XYZType":
-            out += self.str_XYZType()
-        elif self.tag_type == "s15Fixed16ArrayType":
-            out += self.str_s15Fixed16ArrayType()
-        elif self.tag_type == "curveType":
-            out += self.str_curveType()
-        elif self.tag_type == "parametricCurveType":
-            out += self.str_parametricCurveType()
-        elif self.tag_type == "textDescriptionType":
-            out += self.str_textDescriptionType()
-        elif self.tag_type == "textType":
-            out += self.str_textType()
+        out += f' header_signature: "{self.header_signature}"'
+        out += f" header_offset: 0x{self.header_offset:x}"
+        out += f" header_size: {self.header_size}"
+        # check whether there is a valid print function
+        element_name = self.element_table[self.element_signature]
+        printer_name = f"tostring_{element_name}"
+        if printer_name in dir(self):
+            # run the element printer
+            out += " " + getattr(self, printer_name)()
+        else:
+            print(f'warning: no printer for tag element: "{element_name}"')
+            out += " " + self.tostring_UnimplementedType()
         out += " }"
         return out
 
     def pack(self):
-        if self.tag_type == "multiLocalizedUnicodeType":
-            return self.pack_multiLocalizedUnicodeType()
-        elif self.tag_type == "XYZType":
-            return self.pack_XYZType()
-        elif self.tag_type == "s15Fixed16ArrayType":
-            return self.pack_s15Fixed16ArrayType()
-        elif self.tag_type == "curveType":
-            return self.pack_curveType()
-        elif self.tag_type == "parametricCurveType":
-            return self.pack_parametricCurveType()
-        elif self.tag_type == "textDescriptionType":
-            return self.pack_textDescriptionType()
-        elif self.tag_type == "textType":
-            return self.pack_textType()
+        # check whether there is a valid pack function
+        element_name = self.element_table[self.element_signature]
+        pack_name = f"pack_{element_name}"
+        if pack_name in dir(self):
+            # run the element packer
+            return getattr(self, pack_name)()
+        else:
+            print(f'warning: no packer for tag element: "{element_name}"')
+            return self.pack_UnimplementedType()
+
+    # element parsers
+    @classmethod
+    def parse_UnimplementedType(cls, blob):
+        tag = ICCTag()
+        tag.element_size = len(blob)
+        i = 0
+        tag.element_signature = blob[i : i + 4].decode("ascii")
+        tag.remaining = blob[i:]
+        return tag
 
     @classmethod
     def parse_textType(cls, blob):
-        tag = ICCTag("textType")
-        tag.size = len(blob)
+        tag = ICCTag()
+        tag.element_size = len(blob)
         i = 0
-        tag.signature = blob[i : i + 4].decode("ascii")
-        assert "text" == tag.signature, f"invalid textType signature ({tag.signature})"
+        tag.element_signature = blob[i : i + 4].decode("ascii")
         i += 4
         tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
         i += 4
         tag.text = blob[i:].decode("ascii")
         return tag
 
-    def pack_textType(self):
-        # TODO: implement this
-        pass
-
-    def str_textType(self):
-        out = ""
-        out += f" signature: '{self.signature}'"
-        out += f" reserved: {self.reserved}"
-        out += f" text: {self.text}"
-        return out
-
     @classmethod
     def parse_textDescriptionType(cls, blob):
-        tag = ICCTag("textDescriptionType")
-        tag.size = len(blob)
+        tag = ICCTag()
+        tag.element_size = len(blob)
         i = 0
-        tag.signature = blob[i : i + 4].decode("ascii")
-        assert (
-            "desc" == tag.signature
-        ), f"invalid textDescriptionType signature ({tag.signature})"
+        tag.element_signature = blob[i : i + 4].decode("ascii")
         i += 4
         tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
         i += 4
@@ -428,30 +412,43 @@ class ICCTag:
         tag.rem = blob[i:]
         return tag
 
-    def pack_textDescriptionType(self):
-        # TODO: implement this
-        pass
+    @classmethod
+    def parse_s15Fixed16Number(cls, blob):
+        # get the s15Fixed part
+        s15Fixed = struct.unpack(">h", blob[0:2])[0]
+        # get the s16Frac part
+        s16Frac = struct.unpack(">H", blob[2:4])[0]
+        return (s15Fixed, s16Frac)
 
-    def str_textDescriptionType(self):
-        out = ""
-        out += f" signature: '{self.signature}'"
-        out += f" reserved: {self.reserved}"
-        out += f' ascii_invariant_description: "{self.ascii_invariant_description}"'
-        out += f" unicode_language_code: {self.unicode_language_code}"
-        out += (
-            f" unicode_localizable_description: {self.unicode_localizable_description}"
-        )
-        return out
+    @classmethod
+    def parse_XYZType(cls, blob):
+        tag = ICCTag()
+        tag.element_size = len(blob)
+        i = 0
+        tag.element_signature = blob[i : i + 4].decode("ascii")
+        assert "XYZ " == tag.element_signature, f"invalid XYZType signature ({tag.element_signature})"
+        i += 4
+        tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        # read the XYZ numbers
+        tag.numbers = []
+        while i < len(blob):
+            # s15Fixed16Number
+            cie_x = cls.parse_s15Fixed16Number(blob[i : i + 4])
+            i += 4
+            cie_y = cls.parse_s15Fixed16Number(blob[i : i + 4])
+            i += 4
+            cie_z = cls.parse_s15Fixed16Number(blob[i : i + 4])
+            i += 4
+            tag.numbers.append((cie_x, cie_y, cie_z))
+        return tag
 
     @classmethod
     def parse_multiLocalizedUnicodeType(cls, blob):
-        tag = ICCTag("multiLocalizedUnicodeType")
-        tag.size = len(blob)
+        tag = ICCTag()
+        tag.element_size = len(blob)
         i = 0
-        tag.signature = blob[i : i + 4].decode("ascii")
-        assert (
-            "mluc" == tag.signature
-        ), f"invalid multiLocalizedUnicodeType signature ({tag.signature})"
+        tag.element_signature = blob[i : i + 4].decode("ascii")
         i += 4
         tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
         i += 4
@@ -479,17 +476,175 @@ class ICCTag:
         tag.rem = blob[i:]
         return tag
 
+    @classmethod
+    def parse_s15Fixed16ArrayType(cls, blob):
+        tag = ICCTag()
+        tag.element_size = len(blob)
+        i = 0
+        tag.element_signature = blob[i : i + 4].decode("ascii")
+        i += 4
+        tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        # read the XYZ numbers
+        tag.numbers = []
+        while i < len(blob):
+            # s15Fixed16Number
+            number = cls.parse_s15Fixed16Number(blob[i : i + 4])
+            i += 4
+            tag.numbers.append(number)
+        return tag
+
+    @classmethod
+    def parse_parametricCurveType(cls, blob):
+        tag = ICCTag()
+        tag.element_size = len(blob)
+        i = 0
+        tag.element_signature = blob[i : i + 4].decode("ascii")
+        i += 4
+        tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        tag.encoded_value = struct.unpack(">H", blob[i : i + 2])[0]
+        i += 2
+        tag.reserved2 = struct.unpack(">H", blob[i : i + 2])[0]
+        i += 2
+        NUM_PARAMETERS = {
+            0: 1,
+            1: 3,
+            2: 4,
+            3: 5,
+            4: 7,
+        }
+        num_parameters = NUM_PARAMETERS[tag.encoded_value]
+        tag.parameters = []
+        for par_index in range(num_parameters):
+            number = cls.parse_s15Fixed16Number(blob[i : i + 4])
+            i += 4
+            tag.parameters.append(number)
+        return tag
+
+    # element printers
+    def tostring_UnimplementedType(self):
+        out = ""
+        out += f"element_size: {self.element_size}"
+        out += f' element_signature: "{self.element_signature}"'
+        return out
+
+    def tostring_textDescriptionType(self):
+        out = ""
+        out += f' element_signature: "{self.element_signature}"'
+        out += f" reserved: {self.reserved}"
+        out += f' ascii_invariant_description: "{self.ascii_invariant_description}"'
+        out += f" unicode_language_code: {self.unicode_language_code}"
+        out += (
+            f" unicode_localizable_description: {self.unicode_localizable_description}"
+        )
+        return out
+
+    def tostring_multiLocalizedUnicodeType(self):
+        out = ""
+        out += f"element_size: {self.element_size}"
+        out += f' element_signature: "{self.element_signature}"'
+        out += f" reserved: {self.reserved}"
+        out += f" number_of_names: {self.number_of_names}"
+        out += " names ["
+        for (
+            name_record_size,
+            language_code,
+            country_code,
+            length,
+            offset,
+            content,
+        ) in self.names:
+            out += " ("
+            out += f" name_record_size: {name_record_size}"
+            out += f' language_code: "{language_code}"'
+            out += f' country_code: "{country_code}"'
+            out += f" length: {length}"
+            out += f" offset: {offset}"
+            out += f' content: "{content}"'
+            out += " )"
+        out += " ]"
+        return out
+
+    @classmethod
+    def tostring_s15Fixed16Number(cls, s15Fixed16Number):
+        s15Fixed = s15Fixed16Number[0]
+        s16Frac = s15Fixed16Number[1]
+        return s15Fixed + (s16Frac / 65536.0)
+
+    def tostring_XYZType(self):
+        out = ""
+        out += f' element_signature: "{self.element_signature}"'
+        out += f" reserved: {self.reserved}"
+        out += " numbers {"
+        for (cie_x, cie_y, cie_z) in self.numbers:
+            out += f" ({self.tostring_s15Fixed16Number(cie_x)}, {self.tostring_s15Fixed16Number(cie_y)}, {self.tostring_s15Fixed16Number(cie_z)})"
+        out += " }"
+        return out
+
+    def tostring_s15Fixed16ArrayType(self):
+        out = ""
+        out += f' element_signature: "{self.element_signature}"'
+        out += f" reserved: {self.reserved}"
+        out += " numbers {"
+        for number in self.numbers:
+            out += f" {number}"
+        out += " }"
+        return out
+
+    def tostring_parametricCurveType(self):
+        out = ""
+        out += f' element_signature: "{self.element_signature}"'
+        out += f" reserved: {self.reserved}"
+        out += f" encoded_value: {self.encoded_value}"
+        out += f" reserved2: {self.reserved2}"
+        out += " parameters {"
+        for number in self.parameters:
+            out += f" {number}"
+        out += " }"
+        return out
+
+    # element packers
+    def pack_UnimplementedType(self):
+        tag_format = "!" + str(len(self.element_signature)) + "s"
+        tag = struct.pack(
+            tag_format,
+            self.element_signature.encode("ascii"),
+        )
+        tag += self.remaining
+        return tag
+
+    # TODO(chema): implement this
+    # def pack_textType(self):
+
+    # TODO(chema): implement this
+    # def pack_textDescriptionType(self):
+
+    def pack_XYZType(self):
+        tag_format = "!" + str(len(self.element_signature)) + "s" + "I"  # reserved
+        tag = struct.pack(
+            tag_format,
+            self.element_signature.encode("ascii"),
+            self.reserved,
+        )
+        numbers_format = "!hH"
+        for (cie_x, cie_y, cie_z) in self.numbers:
+            tag += struct.pack(numbers_format, *cie_x)
+            tag += struct.pack(numbers_format, *cie_y)
+            tag += struct.pack(numbers_format, *cie_z)
+        return tag
+
     def pack_multiLocalizedUnicodeType(self):
         tag_format = (
             "!"
-            + str(len(self.signature))
+            + str(len(self.element_signature))
             + "s"
             + "I"  # reserved
             + "I"  # number_of_names
         )
         tag = struct.pack(
             tag_format,
-            self.signature.encode("ascii"),
+            self.element_signature.encode("ascii"),
             self.reserved,
             self.number_of_names,
         )
@@ -527,118 +682,11 @@ class ICCTag:
         tag += self.rem
         return tag
 
-    def str_multiLocalizedUnicodeType(self):
-        out = ""
-        out += f" signature: '{self.signature}'"
-        out += f" reserved: {self.reserved}"
-        out += f" number_of_names: {self.number_of_names}"
-        out += " names ["
-        for (
-            name_record_size,
-            language_code,
-            country_code,
-            length,
-            offset,
-            content,
-        ) in self.names:
-            out += " ("
-            out += f" name_record_size: '{name_record_size}'"
-            out += f" language_code: {language_code}"
-            out += f" country_code: {country_code}"
-            out += f" length: {length}"
-            out += f" offset: {offset}"
-            out += f" content: '{content}'"
-            out += " )"
-        out += " ]"
-        return out
-
-    @classmethod
-    def parse_s15Fixed16Number(cls, blob):
-        # get the s15Fixed part
-        s15Fixed = struct.unpack(">h", blob[0:2])[0]
-        # get the s16Frac part
-        s16Frac = struct.unpack(">H", blob[2:4])[0]
-        return (s15Fixed, s16Frac)
-
-    @classmethod
-    def parse_XYZType(cls, blob):
-        tag = ICCTag("XYZType")
-        tag.size = len(blob)
-        i = 0
-        tag.signature = blob[i : i + 4].decode("ascii")
-        assert "XYZ " == tag.signature, f"invalid XYZType signature ({tag.signature})"
-        i += 4
-        tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
-        i += 4
-        # read the XYZ numbers
-        tag.numbers = []
-        while i < len(blob):
-            # s15Fixed16Number
-            cie_x = cls.parse_s15Fixed16Number(blob[i : i + 4])
-            i += 4
-            cie_y = cls.parse_s15Fixed16Number(blob[i : i + 4])
-            i += 4
-            cie_z = cls.parse_s15Fixed16Number(blob[i : i + 4])
-            i += 4
-            tag.numbers.append((cie_x, cie_y, cie_z))
-        return tag
-
-    def pack_XYZType(self):
-        tag_format = "!" + str(len(self.signature)) + "s" + "I"  # reserved
-        tag = struct.pack(
-            tag_format,
-            self.signature.encode("ascii"),
-            self.reserved,
-        )
-        numbers_format = "!hH"
-        for (cie_x, cie_y, cie_z) in self.numbers:
-            tag += struct.pack(numbers_format, *cie_x)
-            tag += struct.pack(numbers_format, *cie_y)
-            tag += struct.pack(numbers_format, *cie_z)
-        return tag
-
-    @classmethod
-    def str_s15Fixed16Number(cls, s15Fixed16Number):
-        s15Fixed = s15Fixed16Number[0]
-        s16Frac = s15Fixed16Number[1]
-        return s15Fixed + (s16Frac / 65536.0)
-
-    def str_XYZType(self):
-        out = ""
-        out += f" signature: '{self.signature}'"
-        out += f" reserved: {self.reserved}"
-        out += " numbers {"
-        for (cie_x, cie_y, cie_z) in self.numbers:
-            out += f" ({self.str_s15Fixed16Number(cie_x)}, {self.str_s15Fixed16Number(cie_y)}, {self.str_s15Fixed16Number(cie_z)})"
-        out += " }"
-        return out
-
-    @classmethod
-    def parse_s15Fixed16ArrayType(cls, blob):
-        tag = ICCTag("s15Fixed16ArrayType")
-        tag.size = len(blob)
-        i = 0
-        tag.signature = blob[i : i + 4].decode("ascii")
-        assert (
-            "sf32" == tag.signature
-        ), f"invalid s15Fixed16ArrayType signature ({tag.signature})"
-        i += 4
-        tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
-        i += 4
-        # read the XYZ numbers
-        tag.numbers = []
-        while i < len(blob):
-            # s15Fixed16Number
-            number = cls.parse_s15Fixed16Number(blob[i : i + 4])
-            i += 4
-            tag.numbers.append(number)
-        return tag
-
     def pack_s15Fixed16ArrayType(self):
-        tag_format = "!" + str(len(self.signature)) + "s" + "I"  # reserved
+        tag_format = "!" + str(len(self.element_signature)) + "s" + "I"  # reserved
         tag = struct.pack(
             tag_format,
-            self.signature.encode("ascii"),
+            self.element_signature.encode("ascii"),
             self.reserved,
         )
         numbers_format = "!hH"
@@ -646,51 +694,10 @@ class ICCTag:
             tag += struct.pack(numbers_format, *number)
         return tag
 
-    def str_s15Fixed16ArrayType(self):
-        out = ""
-        out += f" signature: '{self.signature}'"
-        out += f" reserved: {self.reserved}"
-        out += " numbers {"
-        for number in self.numbers:
-            out += f" {number}"
-        out += " }"
-        return out
-
-    @classmethod
-    def parse_parametricCurveType(cls, blob):
-        tag = ICCTag("parametricCurveType")
-        tag.size = len(blob)
-        i = 0
-        tag.signature = blob[i : i + 4].decode("ascii")
-        assert (
-            "para" == tag.signature
-        ), f"invalid parametricCurveType signature ({tag.signature})"
-        i += 4
-        tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
-        i += 4
-        tag.encoded_value = struct.unpack(">H", blob[i : i + 2])[0]
-        i += 2
-        tag.reserved2 = struct.unpack(">H", blob[i : i + 2])[0]
-        i += 2
-        NUM_PARAMETERS = {
-            0: 1,
-            1: 3,
-            2: 4,
-            3: 5,
-            4: 7,
-        }
-        num_parameters = NUM_PARAMETERS[tag.encoded_value]
-        tag.parameters = []
-        for par_index in range(num_parameters):
-            number = cls.parse_s15Fixed16Number(blob[i : i + 4])
-            i += 4
-            tag.parameters.append(number)
-        return tag
-
     def pack_parametricCurveType(self):
         tag_format = (
             "!"
-            + str(len(self.signature))
+            + str(len(self.element_signature))
             + "s"
             + "I"  # reserved
             + "H"  # encoded_value
@@ -698,7 +705,7 @@ class ICCTag:
         )
         tag = struct.pack(
             tag_format,
-            self.signature.encode("ascii"),
+            self.element_signature.encode("ascii"),
             self.reserved,
             self.encoded_value,
             self.reserved2,
@@ -707,18 +714,6 @@ class ICCTag:
         for parameter in self.parameters:
             tag += struct.pack(parameters_format, *parameter)
         return tag
-
-    def str_parametricCurveType(self):
-        out = ""
-        out += f" signature: '{self.signature}'"
-        out += f" reserved: {self.reserved}"
-        out += f" encoded_value: {self.encoded_value}"
-        out += f" reserved2: {self.reserved2}"
-        out += " parameters {"
-        for number in self.parameters:
-            out += f" {number}"
-        out += " }"
-        return out
 
 
 class ICCProfile:
@@ -733,16 +728,17 @@ class ICCProfile:
         profile.tag_table = []
         profile.elements = {}
         for tag_index in range(profile.tag_count):
-            signature = blob[i : i + 4].decode("ascii")
+            header_signature = blob[i : i + 4].decode("ascii")
             i += 4
-            offset = struct.unpack(">I", blob[i : i + 4])[0]
+            header_offset = struct.unpack(">I", blob[i : i + 4])[0]
             i += 4
-            size = struct.unpack(">I", blob[i : i + 4])[0]
+            header_size = struct.unpack(">I", blob[i : i + 4])[0]
             i += 4
             # parse tagged element data
-            profile.tag_table.append((signature, offset))
-            tag = ICCTag.parse(signature, blob[offset : offset + size], profile.header)
-            profile.elements[offset] = tag
+            element_blob = blob[header_offset : header_offset + header_size]
+            profile.tag_table.append((header_signature, header_offset))
+            tag = ICCTag.parse(header_signature, header_offset, header_size, element_blob, profile.header)
+            profile.elements[header_offset] = tag
         return profile
 
     def size(self):
@@ -753,7 +749,7 @@ class ICCProfile:
         size += 4 + 12 * self.tag_count
         # tagged element data
         for tag in self.elements.values():
-            size += tag.size
+            size += tag.element_size
         return size
 
     def tostring(self, as_one_line=False):
@@ -761,17 +757,23 @@ class ICCProfile:
         out = ""
         out += self.header.tostring(as_one_line)
         out += f"{prefix}tag_count: {self.tag_count}"
+        # TODO(chema): fixme
+        out += "\n\n"  # TODO(chema): fixme
+        for _, element in self.elements.items():
+            out += f"{prefix}{element.tostring()}\n"
+        return out
+
         out += f"{prefix}tag_table ["
         for tag_index in range(self.tag_count):
-            signature, offset = self.tag_table[tag_index]
+            header_signature, header_offset = self.tag_table[tag_index]
             out += f"{prefix}("
-            out += f" signature: '{signature}'"
-            out += f" offset: 0x{offset:x}"
+            out += f' header_signature: "{header_signature}"'
+            out += f" header_offset: 0x{header_offset:x}"
             out += " )"
         out += f"{prefix}]"
         out += f"{prefix}elements {{"
-        for offset, tag in self.elements.items():
-            out += f"{prefix}0x{offset:04x}: {tag.tostring()}"
+        for element_offset, element in self.elements.items():
+            out += f"{prefix}0x{element_offset:04x}: {element.tostring()}"
         out += f"{prefix}}}"
         return out
 
