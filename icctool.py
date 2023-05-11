@@ -15,6 +15,8 @@ import string
 import struct
 import sys
 
+from _version import __version__
+
 
 default_values = {
     "debug": 0,
@@ -918,6 +920,14 @@ def get_options(argv):
     # parser.print_usage() to get argparse.usage (just usage line)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "-v",
+        "--version",
+        action="store_true",
+        dest="version",
+        default=False,
+        help="Print version",
+    )
+    parser.add_argument(
         "-d",
         "--debug",
         action="count",
@@ -994,6 +1004,10 @@ def get_options(argv):
     )
     # do the parsing
     options = parser.parse_args(argv[1:])
+    # implement version
+    if options.version:
+        print(f"version: {__version__}")
+        sys.exit(0)
     return options
 
 
