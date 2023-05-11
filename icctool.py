@@ -11,6 +11,7 @@ Right now the only edition feature allows removing copyrightTag elements.
 
 
 import argparse
+import string
 import struct
 import sys
 
@@ -25,6 +26,34 @@ default_values = {
     "infile": None,
     "outfile": None,
 }
+
+# decode a bytes string into a string containing only characters
+# from the POSIX portable filename character set. For all other
+# characters, use "\\x%02x".
+#
+# The Open Group Base Specifications Issue 7, 2018 edition
+# IEEE Std 1003.1-2017 (Revision of IEEE Std 1003.1-2008)
+#
+# 3.282 Portable Filename Character Set
+#
+# The set of characters from which portable filenames are constructed.
+#
+# A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+# a b c d e f g h i j k l m n o p q r s t u v w x y z
+# 0 1 2 3 4 5 6 7 8 9 . _ -
+#
+# The last three characters are the <period>, <underscore>, and
+# <hyphen-minus> characters, respectively. See also Pathname.
+PORTABLE_FILENAME_CHARACTER_SET = list(string.ascii_uppercase + string.ascii_lowercase + string.digits + "._-")
+
+
+def escape_string(str_in):
+    str_out = "".join(
+        c if c in PORTABLE_FILENAME_CHARACTER_SET else f"\\x{ord(c):02x}"
+        for c in str_in
+    )
+    return str_out
+
 
 """
 The structure of an ICC Profile blob is:
@@ -152,7 +181,7 @@ class ICCHeader:
             f"{prefix}profile_connection_space: '{self.profile_connection_space}'"
             f"{prefix}date_and_time: {self.str_dateTimeNumber()}"
             f"{prefix}profile_file_signature: '{self.profile_file_signature}'"
-            f"{prefix}primary_platform_signature: '{self.primary_platform_signature}'"
+            f"{prefix}primary_platform_signature: '{escape_string(self.primary_platform_signature)}'"
             f"{prefix}profile_flags: {self.profile_flags}"
             f"{prefix}device_manufacturer: 0x{self.device_manufacturer:x}"
             f"{prefix}device_model: {self.device_model}"
