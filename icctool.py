@@ -644,7 +644,7 @@ class ICCTag:
         tabsize += 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         for number in self.numbers:
-            out += f"{prefix}{number},"
+            out += f"{prefix}{self.tostring_s15Fixed16Number(number)},"
         tabsize -= 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out += f"{prefix}}}"
@@ -661,7 +661,7 @@ class ICCTag:
         tabsize += 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         for number in self.parameters:
-            out += f"{prefix}{number},"
+            out += f"{prefix}{self.tostring_s15Fixed16Number(number)},"
         tabsize -= 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out += f"{prefix}}}"
