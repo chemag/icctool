@@ -179,12 +179,12 @@ class ICCHeader:
             f"{prefix}profile_size: 0x{self.profile_size:x}"
             f"{prefix}preferred_cmm_type: {self.preferred_cmm_type}"
             f"{prefix}profile_version_number: {self.str_VersionNumber()}"
-            f"{prefix}profile_device_class: '{self.profile_device_class}'"
-            f"{prefix}color_space: '{self.color_space}'"
-            f"{prefix}profile_connection_space: '{self.profile_connection_space}'"
-            f"{prefix}date_and_time: {self.str_dateTimeNumber()}"
-            f"{prefix}profile_file_signature: '{self.profile_file_signature}'"
-            f"{prefix}primary_platform_signature: '{escape_string(self.primary_platform_signature)}'"
+            f'{prefix}profile_device_class: "{self.profile_device_class}"'
+            f'{prefix}color_space: "{self.color_space}"'
+            f'{prefix}profile_connection_space: "{self.profile_connection_space}"'
+            f'{prefix}date_and_time: "{self.str_dateTimeNumber()}"'
+            f'{prefix}profile_file_signature: "{self.profile_file_signature}"'
+            f'{prefix}primary_platform_signature: "{escape_string(self.primary_platform_signature)}"'
             f"{prefix}profile_flags: {self.profile_flags}"
             f"{prefix}device_manufacturer: 0x{self.device_manufacturer:x}"
             f"{prefix}device_model: {self.device_model}"
