@@ -55,6 +55,9 @@ def escape_string(str_in):
     return str_out
 
 
+TABSTR = "  "
+
+
 """
 The structure of an ICC Profile blob is:
 - icc profile header [128 bytes]
@@ -170,8 +173,8 @@ class ICCHeader:
         # assert 0x00 == reserved, "invalid icc header"  # TODO
         return header, i
 
-    def tostring(self, as_one_line):
-        prefix = " " if as_one_line else "\n"
+    def tostring(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         return (
             f"{prefix}profile_size: 0x{self.profile_size:x}"
             f"{prefix}preferred_cmm_type: {self.preferred_cmm_type}"
@@ -358,21 +361,26 @@ class ICCTag:
         tag.header_size = header_size
         return tag
 
-    def tostring(self):
-        out = "tag {"
-        out += f' header_signature: "{self.header_signature}"'
-        out += f" header_offset: 0x{self.header_offset:x}"
-        out += f" header_size: {self.header_size}"
+    def tostring(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+        out = f"{prefix}tag {{"
+        tabsize += 0 if tabsize == -1 else 1
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+        out += f'{prefix}header_signature: "{self.header_signature}"'
+        out += f"{prefix}header_offset: 0x{self.header_offset:x}"
+        out += f"{prefix}header_size: {self.header_size}"
         # check whether there is a valid print function
         element_name = self.element_table[self.element_signature]
         printer_name = f"tostring_{element_name}"
         if printer_name in dir(self):
             # run the element printer
-            out += " " + getattr(self, printer_name)()
+            out += prefix + getattr(self, printer_name)(tabsize).strip()
         else:
             print(f'warning: no printer for tag element: "{element_name}"')
-            out += " " + self.tostring_UnimplementedType()
-        out += " }"
+            out += prefix + self.tostring_UnimplementedType(tabsize).strip()
+        tabsize -= 0 if tabsize == -1 else 1
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+        out += f"{prefix}}}"
         return out
 
     def pack(self):
@@ -552,30 +560,35 @@ class ICCTag:
         return tag
 
     # element printers
-    def tostring_UnimplementedType(self):
+    def tostring_UnimplementedType(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
-        out += f"element_size: {self.element_size}"
-        out += f' element_signature: "{self.element_signature}"'
+        out += f"{prefix}element_size: {self.element_size}"
+        out += f'{prefix}element_signature: "{self.element_signature}"'
         return out
 
-    def tostring_textDescriptionType(self):
+    def tostring_textDescriptionType(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
-        out += f' element_signature: "{self.element_signature}"'
-        out += f" reserved: {self.reserved}"
-        out += f' ascii_invariant_description: "{self.ascii_invariant_description}"'
-        out += f" unicode_language_code: {self.unicode_language_code}"
+        out += f'{prefix}element_signature: "{self.element_signature}"'
+        out += f"{prefix}reserved: {self.reserved}"
+        out += f'{prefix}ascii_invariant_description: "{self.ascii_invariant_description}"'
+        out += f"{prefix}unicode_language_code: {self.unicode_language_code}"
         out += (
-            f" unicode_localizable_description: {self.unicode_localizable_description}"
+            f"{prefix}unicode_localizable_description: {self.unicode_localizable_description}"
         )
         return out
 
-    def tostring_multiLocalizedUnicodeType(self):
+    def tostring_multiLocalizedUnicodeType(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
-        out += f"element_size: {self.element_size}"
-        out += f' element_signature: "{self.element_signature}"'
-        out += f" reserved: {self.reserved}"
-        out += f" number_of_names: {self.number_of_names}"
-        out += " names ["
+        out += f"{prefix}element_size: {self.element_size}"
+        out += f'{prefix}element_signature: "{self.element_signature}"'
+        out += f"{prefix}reserved: {self.reserved}"
+        out += f"{prefix}number_of_names: {self.number_of_names}"
+        out += f"{prefix}names ["
+        tabsize += 0 if tabsize == -1 else 1
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         for (
             name_record_size,
             language_code,
@@ -584,15 +597,21 @@ class ICCTag:
             offset,
             content,
         ) in self.names:
-            out += " ("
-            out += f" name_record_size: {name_record_size}"
-            out += f' language_code: "{language_code}"'
-            out += f' country_code: "{country_code}"'
-            out += f" length: {length}"
-            out += f" offset: {offset}"
-            out += f' content: "{content}"'
-            out += " )"
-        out += " ]"
+            out += f"{prefix}("
+            tabsize += 0 if tabsize == -1 else 1
+            prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+            out += f"{prefix}name_record_size: {name_record_size}"
+            out += f'{prefix}language_code: "{language_code}"'
+            out += f'{prefix}country_code: "{country_code}"'
+            out += f"{prefix}length: {length}"
+            out += f"{prefix}offset: {offset}"
+            out += f'{prefix}content: "{content}"'
+            tabsize -= 0 if tabsize == -1 else 1
+            prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+            out += f"{prefix}),"
+        tabsize -= 0 if tabsize == -1 else 1
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+        out += f"{prefix}]"
         return out
 
     @classmethod
@@ -601,36 +620,51 @@ class ICCTag:
         s16Frac = s15Fixed16Number[1]
         return s15Fixed + (s16Frac / 65536.0)
 
-    def tostring_XYZType(self):
+    def tostring_XYZType(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
-        out += f' element_signature: "{self.element_signature}"'
-        out += f" reserved: {self.reserved}"
-        out += " numbers {"
+        out += f'{prefix}element_signature: "{self.element_signature}"'
+        out += f"{prefix}reserved: {self.reserved}"
+        out += f"{prefix}numbers {{"
+        tabsize += 0 if tabsize == -1 else 1
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         for (cie_x, cie_y, cie_z) in self.numbers:
-            out += f" ({self.tostring_s15Fixed16Number(cie_x)}, {self.tostring_s15Fixed16Number(cie_y)}, {self.tostring_s15Fixed16Number(cie_z)})"
-        out += " }"
+            out += f"{prefix}({self.tostring_s15Fixed16Number(cie_x)}, {self.tostring_s15Fixed16Number(cie_y)}, {self.tostring_s15Fixed16Number(cie_z)}),"
+        tabsize -= 0 if tabsize == -1 else 1
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+        out += f"{prefix}}}"
         return out
 
-    def tostring_s15Fixed16ArrayType(self):
+    def tostring_s15Fixed16ArrayType(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
-        out += f' element_signature: "{self.element_signature}"'
-        out += f" reserved: {self.reserved}"
-        out += " numbers {"
+        out += f'{prefix}element_signature: "{self.element_signature}"'
+        out += f"{prefix}reserved: {self.reserved}"
+        out += f"{prefix}numbers {{"
+        tabsize += 0 if tabsize == -1 else 1
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         for number in self.numbers:
-            out += f" {number}"
-        out += " }"
+            out += f"{prefix}{number},"
+        tabsize -= 0 if tabsize == -1 else 1
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+        out += f"{prefix}}}"
         return out
 
-    def tostring_parametricCurveType(self):
+    def tostring_parametricCurveType(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
-        out += f' element_signature: "{self.element_signature}"'
-        out += f" reserved: {self.reserved}"
-        out += f" encoded_value: {self.encoded_value}"
-        out += f" reserved2: {self.reserved2}"
-        out += " parameters {"
+        out += f'{prefix}element_signature: "{self.element_signature}"'
+        out += f"{prefix}reserved: {self.reserved}"
+        out += f"{prefix}encoded_value: {self.encoded_value}"
+        out += f"{prefix}reserved2: {self.reserved2}"
+        out += f"{prefix}parameters {{"
+        tabsize += 0 if tabsize == -1 else 1
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         for number in self.parameters:
-            out += f" {number}"
-        out += " }"
+            out += f"{prefix}{number},"
+        tabsize -= 0 if tabsize == -1 else 1
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+        out += f"{prefix}}}"
         return out
 
     # element packers
@@ -782,29 +816,14 @@ class ICCProfile:
         return size
 
     def tostring(self, as_one_line=False):
-        prefix = " " if as_one_line else "\n"
+        tabsize = -1 if as_one_line else 0
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
-        out += self.header.tostring(as_one_line)
+        out += self.header.tostring(tabsize)
         out += f"{prefix}tag_count: {self.tag_count}"
-        # TODO(chema): fixme
-        out += "\n\n"  # TODO(chema): fixme
         for _, element in self.elements.items():
-            out += f"{prefix}{element.tostring()}\n"
-        return out
-
-        out += f"{prefix}tag_table ["
-        for tag_index in range(self.tag_count):
-            header_signature, header_offset = self.tag_table[tag_index]
-            out += f"{prefix}("
-            out += f' header_signature: "{header_signature}"'
-            out += f" header_offset: 0x{header_offset:x}"
-            out += " )"
-        out += f"{prefix}]"
-        out += f"{prefix}elements {{"
-        for element_offset, element in self.elements.items():
-            out += f"{prefix}0x{element_offset:04x}: {element.tostring()}"
-        out += f"{prefix}}}"
-        return out
+            out += f"{prefix}{element.tostring(tabsize).strip()}"
+        return out.strip()
 
 
 def parse_icc_profile(infile, force_version_number, debug):
