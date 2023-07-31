@@ -438,19 +438,18 @@ TAG_ELEMENT_TABLE = (
 )
 
 
+# produces a dictionary with tag signatures as keys, and names as values
+def read_tag_header_table(table=TAG_HEADER_TABLE):
+    return {signature: name for (name, signature, _) in table}
+
+
+# produces a dictionary with tag signatures as keys, and names as values
+def read_tag_element_table(table=TAG_ELEMENT_TABLE):
+    return {signature: name for (name, signature) in table}
+
+
 class ICCTag:
-    # produces a dictionary with tag signatures as keys, and names as values
-    @staticmethod
-    def read_tag_header_table(table=TAG_HEADER_TABLE):
-        return {signature: name for (name, signature, _) in table}
-
     header_table = read_tag_header_table()
-
-    # produces a dictionary with tag signatures as keys, and names as values
-    @staticmethod
-    def read_tag_element_table(table=TAG_ELEMENT_TABLE):
-        return {signature: name for (name, signature) in table}
-
     element_table = read_tag_element_table()
 
     @classmethod
