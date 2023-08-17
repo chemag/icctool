@@ -374,6 +374,7 @@ TAG_HEADER_TABLE = (
     ("luminanceTag", "lumi", ("XYZType",)),
     ("measurementTag", "meas", ("measurementType",)),
     ("metadataTag", "meta", ("dictType",)),
+    ("mediaBlackPointTag", "bkpt", ("XYZType",)),
     ("mediaWhitePointTag", "wtpt", ("XYZType",)),
     ("namedColor2Tag", "ncl2", ("namedColor2Type",)),
     ("outputResponseTag", "resp", ("responseCurveSet16Type",)),
