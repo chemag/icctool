@@ -793,8 +793,20 @@ class ICCTag:
         tag += self.remaining
         return tag
 
-    # TODO(chema): implement this
-    # def pack_textType(self):
+    def pack_textType(self):
+        # element_signature
+        tag_format = "!" + str(len(self.element_signature)) + "s"
+        # reserved
+        tag_format += "I"
+        # text
+        tag_format += str(len(self.text)) + "s"
+        tag = struct.pack(
+            tag_format,
+            self.element_signature.encode("ascii"),
+            self.reserved,
+            self.text.encode("ascii"),
+        )
+        return tag
 
     # TODO(chema): implement this
     # def pack_textDescriptionType(self):
