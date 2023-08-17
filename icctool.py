@@ -808,8 +808,50 @@ class ICCTag:
         )
         return tag
 
-    # TODO(chema): implement this
-    # def pack_textDescriptionType(self):
+    def pack_textDescriptionType(self):
+        # element_signature
+        tag_format = "!" + str(len(self.element_signature)) + "s"
+        # reserved
+        tag_format += "I"
+        # ascii_length
+        tag_format += "I"
+        tag = struct.pack(
+            tag_format,
+            self.element_signature.encode("ascii"),
+            self.reserved,
+            self.ascii_length,
+        )
+        # element_signature
+        tag_format = "!" + str(self.ascii_length) + "s"
+        tag += struct.pack(
+            tag_format,
+            self.ascii_invariant_description.encode("ascii"),
+        )
+        # unicode_language_code
+        tag_format = "!" + "I"
+        # unicode_length
+        tag_format += "I"
+        # unicode_localizable_description
+        tag_format += str(self.unicode_length) + "s"
+        tag += struct.pack(
+            tag_format,
+            self.unicode_language_code,
+            self.unicode_length,
+            self.unicode_localizable_description,
+        )
+        # scriptcode_code
+        tag_format = "!" + "H"
+        tag_format += "B"
+        tag_format += str(len(self.macintosh_description)) + "s"
+        tag_format += str(len(self.rem)) + "s"
+        tag += struct.pack(
+            tag_format,
+            self.scriptcode_code,
+            self.macintosh_length,
+            self.macintosh_description,
+            self.rem,
+        )
+        return tag
 
     def pack_XYZType(self):
         tag_format = "!" + str(len(self.element_signature)) + "s" + "I"  # reserved
