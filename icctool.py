@@ -1107,17 +1107,19 @@ def get_options(argv):
         help="Write ICC profile in binary format",
     )
     parser.add_argument(
-        "infile",
+        "-i",
+        "--infile",
+        dest="infile",
         type=str,
-        nargs="?",
         default=default_values["infile"],
         metavar="input-file",
         help="input file",
     )
     parser.add_argument(
-        "outfile",
+        "-o",
+        "--outfile",
+        dest="outfile",
         type=str,
-        nargs="?",
         default=default_values["outfile"],
         metavar="output-file",
         help="output file",
@@ -1135,8 +1137,10 @@ def main(argv):
     # parse options
     options = get_options(argv)
     # get infile/outfile
-    if options.infile == "-":
+    if options.infile == "-" or options.infile is None:
         options.infile = "/dev/fd/0"
+    if options.outfile == "-" or options.outfile is None:
+        options.outfile = "/dev/fd/1"
     # print results
     if options.debug > 0:
         print(options)
