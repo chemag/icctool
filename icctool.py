@@ -683,6 +683,16 @@ class ICCTag:
         out += f'{prefix}element_signature: "{self.element_signature}"'
         return out
 
+    def tostring_textType(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+        out = ""
+        out += f'{prefix}element_signature: "{self.element_signature}"'
+        out += f"{prefix}reserved: {self.reserved}"
+        out += (
+            f'{prefix}text: "{self.text}"'
+        )
+        return out
+
     def tostring_textDescriptionType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
