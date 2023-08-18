@@ -1214,7 +1214,10 @@ def main(argv):
     )
     if options.print:
         # dump contents
-        print(profile.tostring(options.as_one_line))
+        # print(profile.tostring(options.as_one_line))
+        with open(options.outfile, "w+") as fout:
+            fout.write(profile.tostring(options.as_one_line))
+        sys.exit(0)
     if options.remove_copyright:
         # remove copyrights
         profile = remove_copyright(profile, options.debug)
