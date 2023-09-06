@@ -850,7 +850,7 @@ class ICCTag:
         # curve_count
         tag_format += "I"
         # curve_value(s)
-        tag_format += "I" * self.curve_count
+        tag_format += "H" * self.curve_count
         tag = struct.pack(
             tag_format,
             self.element_signature.encode("ascii"),
