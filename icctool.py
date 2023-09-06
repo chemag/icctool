@@ -455,19 +455,18 @@ class ICCTag:
     @classmethod
     def parse(cls, header_signature, header_offset, header_size, blob, header):
         # check whether the tag signature is known
-        assert (
-            header_signature in cls.header_table
-        ), f'error: invalid tag signature: "{header_signature}"'
+        if header_signature not in cls.header_table:
+            print(f'warning: invalid tag signature: "{header_signature}"')
         # get the element signature
         element_signature = blob[0:4].decode("ascii")
-        # check whether there is a valid element parser
-        element_name = cls.element_table[element_signature]
+        element_name = cls.element_table.get(element_signature, None)
         parser_name = f"parse_{element_name}"
         if parser_name in dir(cls):
             # run the element parser
             tag = getattr(cls, parser_name)(blob)
         else:
-            print(f'warning: no parser for tag element: "{element_name}"')
+            if parser_name != "parse_None":
+                print(f'warning: no parser "{parser_name}()" for header_signature: "{header_signature}" element_signature: "{element_signature}" element_name: "{element_name}"')
             tag = cls.parse_UnimplementedType(blob)
         # add the header info
         tag.header_signature = header_signature
@@ -484,13 +483,14 @@ class ICCTag:
         out += f"{prefix}header_offset: 0x{self.header_offset:x}"
         out += f"{prefix}header_size: {self.header_size}"
         # check whether there is a valid print function
-        element_name = self.element_table[self.element_signature]
+        element_name = self.element_table.get(self.element_signature, None)
         printer_name = f"tostring_{element_name}"
         if printer_name in dir(self):
             # run the element printer
             out += prefix + getattr(self, printer_name)(tabsize).strip()
         else:
-            print(f'warning: no printer for tag element: "{element_name}"')
+            if printer_name != "tostring_None":
+                print(f'warning: no printer for tag element: "{element_name}"')
             out += prefix + self.tostring_UnimplementedType(tabsize).strip()
         tabsize -= 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
