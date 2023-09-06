@@ -499,13 +499,14 @@ class ICCTag:
 
     def pack(self):
         # check whether there is a valid pack function
-        element_name = self.element_table[self.element_signature]
+        element_name = self.element_table.get(self.element_signature, None)
         pack_name = f"pack_{element_name}"
         if pack_name in dir(self):
             # run the element packer
             return getattr(self, pack_name)()
         else:
-            print(f'warning: no packer for tag element: "{element_name}"')
+            if pack_name != "pack_None":
+                print(f'warning: no packer for tag element: "{element_name}"')
             return self.pack_UnimplementedType()
 
     # element parsers
