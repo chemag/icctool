@@ -708,7 +708,7 @@ class ICCTag:
         out += f'{prefix}element_signature: "{self.element_signature}"'
         out += f"{prefix}reserved: {self.reserved}"
         out += (
-            f'{prefix}text: "{self.text}"'
+            f'{prefix}text: "{escape_string(self.text)}"'
         )
         return out
 
