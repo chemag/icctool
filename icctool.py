@@ -681,6 +681,7 @@ class ICCTag:
         out = ""
         out += f"{prefix}element_size: {self.element_size}"
         out += f'{prefix}element_signature: "{self.element_signature}"'
+        out += f'{prefix}remaining: "{self.remaining}"'
         return out
 
     def tostring_textType(self, tabsize):
