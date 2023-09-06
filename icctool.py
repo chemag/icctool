@@ -532,6 +532,23 @@ class ICCTag:
         return tag
 
     @classmethod
+    def parse_curveType(cls, blob):
+        tag = ICCTag()
+        tag.element_size = len(blob)
+        i = 0
+        tag.element_signature = blob[i : i + 4].decode("ascii")
+        i += 4
+        tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        tag.curve_count = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        tag.curve_value = []
+        for curve_index in range(tag.curve_count):
+            tag.curve_value.append(struct.unpack(">H", blob[i : i + 2])[0])
+            i += 2
+        return tag
+
+    @classmethod
     def parse_textDescriptionType(cls, blob):
         tag = ICCTag()
         tag.element_size = len(blob)
@@ -695,6 +712,15 @@ class ICCTag:
         )
         return out
 
+    def tostring_curveType(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+        out = ""
+        out += f'{prefix}element_signature: "{self.element_signature}"'
+        out += f"{prefix}reserved: {self.reserved}"
+        out += f"{prefix}curve_count: {self.curve_count}"
+        out += f"{prefix}curve_value: {self.curve_value}"
+        return out
+
     def tostring_textDescriptionType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
@@ -817,6 +843,24 @@ class ICCTag:
             self.element_signature.encode("ascii"),
             self.reserved,
             self.text.encode("ascii"),
+        )
+        return tag
+
+    def pack_curveType(self):
+        # element_signature
+        tag_format = "!" + str(len(self.element_signature)) + "s"
+        # reserved
+        tag_format += "I"
+        # curve_count
+        tag_format += "I"
+        # curve_value(s)
+        tag_format += "I" * self.curve_count
+        tag = struct.pack(
+            tag_format,
+            self.element_signature.encode("ascii"),
+            self.reserved,
+            self.curve_count,
+            *self.curve_value,
         )
         return tag
 
