@@ -823,12 +823,8 @@ class ICCTag:
 
     # element packers
     def pack_UnimplementedType(self):
-        tag_format = "!" + str(len(self.element_signature)) + "s"
-        tag = struct.pack(
-            tag_format,
-            self.element_signature.encode("ascii"),
-        )
-        tag += self.remaining
+        # remaining contains the full blob (unparsed)
+        tag = self.remaining
         return tag
 
     def pack_textType(self):
