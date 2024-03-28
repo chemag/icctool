@@ -1241,9 +1241,15 @@ class ICCProfile:
         # add tag summaries
         for tag in din["tag"]:
             if tag["header_signature"] == "desc":
-                dout["profile_description"] = tag["names"][0]["content"]
+                if tag["element_signature"] == "mluc":
+                    dout["profile_description"] = tag["names"][0]["content"]
+                elif tag["element_signature"] == "desc":
+                    dout["profile_description"] = tag["ascii_invariant_description"]
             elif tag["header_signature"] == "cprt":
-                dout["profile_copyright"] = tag["names"][0]["content"]
+                if tag["element_signature"] == "mluc":
+                    dout["profile_copyright"] = tag["names"][0]["content"]
+                elif tag["element_signature"] == "text":
+                    dout["profile_copyright"] = tag["text"]
             elif tag["header_signature"] == "wtpt":
                 dout["media_white_point"] = " ".join(str(n) for n in tag["numbers"][0])
             elif tag["header_signature"] == "chad":
