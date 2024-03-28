@@ -1263,11 +1263,21 @@ class ICCProfile:
             elif tag["header_signature"] == "bXYZ":
                 dout["blue_matrix_column"] = " ".join(str(n) for n in tag["numbers"][0])
             elif tag["header_signature"] == "rTRC":
-                dout["red_trc"] = " ".join(str(n) for n in tag["parameters"])
+                if tag["element_signature"] == "para":
+                    dout["red_trc"] = " ".join(str(n) for n in tag["parameters"])
+                elif tag["element_signature"] == "curv":
+                    dout["red_trc"] = " ".join(str(n) for n in tag["curve_value"])
             elif tag["header_signature"] == "gTRC":
-                dout["green_trc"] = " ".join(str(n) for n in tag["parameters"])
+                if tag["element_signature"] == "para":
+                    dout["green_trc"] = " ".join(str(n) for n in tag["parameters"])
+                elif tag["element_signature"] == "curv":
+                    dout["green_trc"] = " ".join(str(n) for n in tag["curve_value"])
             elif tag["header_signature"] == "bTRC":
-                dout["blue_trc"] = " ".join(str(n) for n in tag["parameters"])
+                if tag["element_signature"] == "para":
+                    dout["blue_trc"] = " ".join(str(n) for n in tag["parameters"])
+                elif tag["element_signature"] == "curv":
+                    dout["blue_trc"] = " ".join(str(n) for n in tag["curve_value"])
+
             else:
                 print(f"warning: need to support {header_signature}")
         return dout
