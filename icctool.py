@@ -1277,7 +1277,12 @@ class ICCProfile:
                     dout["blue_trc"] = " ".join(str(n) for n in tag["parameters"])
                 elif tag["element_signature"] == "curv":
                     dout["blue_trc"] = " ".join(str(n) for n in tag["curve_value"])
-
+            elif tag["header_signature"] == "chrm":
+                dout["chromaticity"] = tag["remaining"]
+            elif tag["header_signature"] == "dmdd":
+                dout["device_model_desc"] = tag["ascii_invariant_description"]
+            elif tag["header_signature"] == "dmnd":
+                dout["device_mfg_desc"] = tag["ascii_invariant_description"]
             else:
                 print(f"warning: need to support {header_signature}")
         return dout
