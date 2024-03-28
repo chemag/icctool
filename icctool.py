@@ -11,6 +11,7 @@ Right now the only edition feature allows removing copyrightTag elements.
 
 
 import argparse
+import json
 import string
 import struct
 import sys
@@ -22,6 +23,8 @@ default_values = {
     "debug": 0,
     "remove_copyright": False,
     "print": False,
+    "json": False,
+    "short": True,
     "as_one_line": True,
     "force_version_number": None,
     "write": False,
@@ -55,6 +58,14 @@ def escape_string(str_in):
     str_out = "".join(
         c if c in PORTABLE_FILENAME_CHARACTER_SET else f"\\x{ord(c):02x}"
         for c in str_in
+    )
+    return str_out
+
+
+def escape_bin(bin_in):
+    str_out = "".join(
+        chr(c) if chr(c) in PORTABLE_FILENAME_CHARACTER_SET else f"\\x{c:02x}"
+        for c in bin_in
     )
     return str_out
 
@@ -199,6 +210,28 @@ class ICCHeader:
             f"{prefix}profile_id: {self.profile_id}"
             f"{prefix}reserved: {self.reserved}"
         )
+
+    def todict(self):
+        d = {}
+        d["profile_size"] = self.profile_size
+        d["preferred_cmm_type"] = self.preferred_cmm_type
+        d["profile_version_number"] = self.str_VersionNumber()
+        d["profile_device_class"] = self.profile_device_class
+        d["color_space"] = self.color_space
+        d["profile_connection_space"] = self.profile_connection_space
+        d["date_and_time"] = self.str_dateTimeNumber()
+        d["profile_file_signature"] = self.profile_file_signature
+        d["primary_platform_signature"] = escape_string(self.primary_platform_signature)
+        d["profile_flags"] = self.profile_flags
+        d["device_manufacturer"] = self.device_manufacturer
+        d["device_model"] = self.device_model
+        d["device_attributes"] = escape_bin(self.device_attributes)
+        d["rendering_intent"] = self.rendering_intent
+        d["xyz_illuminant"] = escape_bin(self.xyz_illuminant)
+        d["profile_creator_field"] = self.profile_creator_field
+        d["profile_id"] = escape_bin(self.profile_id)
+        d["reserved"] = escape_bin(self.reserved)
+        return d
 
     def pack(self):
         version_number_bytes = self.pack_VersionNumber()
@@ -500,6 +533,23 @@ class ICCTag:
         out += f"{prefix}}}"
         return out
 
+    def todict(self):
+        d = {}
+        d["header_signature"] = self.header_signature
+        d["header_offset"] = self.header_offset
+        d["header_size"] = self.header_size
+        # check whether there is a valid print function
+        element_name = self.element_table.get(self.element_signature, None)
+        printer_name = f"todict_{element_name}"
+        if printer_name in dir(self):
+            # run the element printer
+            d.update(getattr(self, printer_name)())
+        else:
+            if printer_name != "todict_None":
+                print(f'warning: no printer for tag element: "{element_name}"')
+            d.update(self.todict_UnimplementedType())
+        return d
+
     def pack(self):
         # check whether there is a valid pack function
         element_name = self.element_table.get(self.element_signature, None)
@@ -705,6 +755,13 @@ class ICCTag:
         out += f'{prefix}remaining: "{self.remaining}"'
         return out
 
+    def todict_UnimplementedType(self):
+        d = {}
+        d["element_size"] = self.element_size
+        d["element_signature"] = self.element_signature
+        d["remaining"] = self.remaining
+        return d
+
     def tostring_textType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
@@ -712,6 +769,13 @@ class ICCTag:
         out += f"{prefix}reserved: {self.reserved}"
         out += f'{prefix}text: "{escape_string(self.text)}"'
         return out
+
+    def todict_textType(self):
+        d = {}
+        d["element_signature"] = self.element_signature
+        d["reserved"] = self.reserved
+        d["text"] = escape_string(self.text)
+        return d
 
     def tostring_curveType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
@@ -721,6 +785,14 @@ class ICCTag:
         out += f"{prefix}curve_count: {self.curve_count}"
         out += f"{prefix}curve_value: {self.curve_value}"
         return out
+
+    def todict_curveType(self):
+        d = {}
+        d["element_signature"] = self.element_signature
+        d["reserved"] = self.reserved
+        d["curve_count"] = self.curve_count
+        d["curve_value"] = self.curve_value
+        return d
 
     def tostring_textDescriptionType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
@@ -733,6 +805,15 @@ class ICCTag:
         out += f"{prefix}unicode_language_code: {self.unicode_language_code}"
         out += f"{prefix}unicode_localizable_description: {self.unicode_localizable_description}"
         return out
+
+    def todict_textDescriptionType(self):
+        d = {}
+        d["element_signature"] = self.element_signature
+        d["reserved"] = self.reserved
+        d["ascii_invariant_description"] = self.ascii_invariant_description
+        d["unicode_language_code"] = self.unicode_language_code
+        d["unicode_localizable_description"] = self.unicode_localizable_description
+        return d
 
     def tostring_multiLocalizedUnicodeType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
@@ -769,6 +850,31 @@ class ICCTag:
         out += f"{prefix}]"
         return out
 
+    def todict_multiLocalizedUnicodeType(self):
+        d = {}
+        d["element_size"] = self.element_size
+        d["element_signature"] = self.element_signature
+        d["reserved"] = self.reserved
+        d["number_of_names"] = self.number_of_names
+        d["names"] = []
+        for (
+            name_record_size,
+            language_code,
+            country_code,
+            length,
+            offset,
+            content,
+        ) in self.names:
+            di = {}
+            di["name_record_size"] = name_record_size
+            di["language_code"] = language_code
+            di["country_code"] = country_code
+            di["length"] = length
+            di["offset"] = offset
+            di["content"] = content
+            d["names"].append(di)
+        return d
+
     @classmethod
     def tostring_s15Fixed16Number(cls, s15Fixed16Number):
         s15Fixed = s15Fixed16Number[0]
@@ -790,6 +896,21 @@ class ICCTag:
         out += f"{prefix}}}"
         return out
 
+    def todict_XYZType(self):
+        d = {}
+        d["element_signature"] = self.element_signature
+        d["reserved"] = self.reserved
+        d["numbers"] = []
+        for cie_x, cie_y, cie_z in self.numbers:
+            d["numbers"].append(
+                (
+                    self.tostring_s15Fixed16Number(cie_x),
+                    self.tostring_s15Fixed16Number(cie_y),
+                    self.tostring_s15Fixed16Number(cie_z),
+                )
+            )
+        return d
+
     def tostring_s15Fixed16ArrayType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
@@ -804,6 +925,15 @@ class ICCTag:
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out += f"{prefix}}}"
         return out
+
+    def todict_s15Fixed16ArrayType(self):
+        d = {}
+        d["element_signature"] = self.element_signature
+        d["reserved"] = self.reserved
+        d["numbers"] = []
+        for number in self.numbers:
+            d["numbers"].append(self.tostring_s15Fixed16Number(number))
+        return d
 
     def tostring_parametricCurveType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
@@ -821,6 +951,17 @@ class ICCTag:
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out += f"{prefix}}}"
         return out
+
+    def todict_parametricCurveType(self):
+        d = {}
+        d["element_signature"] = self.element_signature
+        d["reserved"] = self.reserved
+        d["encoded_value"] = self.encoded_value
+        d["reserved2"] = self.reserved2
+        d["parameters"] = []
+        for number in self.parameters:
+            d["parameters"].append(self.tostring_s15Fixed16Number(number))
+        return d
 
     # element packers
     def pack_UnimplementedType(self):
@@ -1003,6 +1144,13 @@ class ICCTag:
 
 
 class ICCProfile:
+    # Table 11
+    DEVICE_CLASS = {
+        "scnr": "Input Device Profile",
+        "mntr": "Display Device Profile",
+        "prtr": "Output Device Profile",
+    }
+
     @classmethod
     def parse(cls, blob, force_version_number):
         # parse header
@@ -1066,6 +1214,57 @@ class ICCProfile:
             else:
                 out += f"{prefix}{element.tostring(tabsize).strip()}"
         return out.strip()
+
+    def todict(self, short=False):
+        d = {}
+        d.update(self.header.todict())
+        d["tag"] = []
+        for _, element in self.elements.items():
+            if isinstance(element, list):
+                for subelement in element:
+                    d["tag"].append(subelement.todict())
+            else:
+                d["tag"].append(element.todict())
+        if short:
+            d = self.reduce_info(d)
+        return d
+
+    def reduce_info(self, din):
+        # select header fields
+        dout = {
+            "profile_version": din["profile_version_number"],
+            "profile_class": self.DEVICE_CLASS[din["profile_device_class"]],
+            "color_space": din["color_space"],
+            "profile_connection_space": din["profile_connection_space"],
+            "xyz_illuminant": din["xyz_illuminant"],
+        }
+        # add tag summaries
+        for tag in din["tag"]:
+            if tag["header_signature"] == "desc":
+                dout["profile_description"] = tag["names"][0]["content"]
+            elif tag["header_signature"] == "cprt":
+                dout["profile_copyright"] = tag["names"][0]["content"]
+            elif tag["header_signature"] == "wtpt":
+                dout["media_white_point"] = " ".join(str(n) for n in tag["numbers"][0])
+            elif tag["header_signature"] == "chad":
+                dout["chromatic_adaptation"] = " ".join(str(n) for n in tag["numbers"])
+            elif tag["header_signature"] == "rXYZ":
+                dout["red_matrix_column"] = " ".join(str(n) for n in tag["numbers"][0])
+            elif tag["header_signature"] == "gXYZ":
+                dout["green_matrix_column"] = " ".join(
+                    str(n) for n in tag["numbers"][0]
+                )
+            elif tag["header_signature"] == "bXYZ":
+                dout["blue_matrix_column"] = " ".join(str(n) for n in tag["numbers"][0])
+            elif tag["header_signature"] == "rTRC":
+                dout["red_trc"] = " ".join(str(n) for n in tag["parameters"])
+            elif tag["header_signature"] == "gTRC":
+                dout["green_trc"] = " ".join(str(n) for n in tag["parameters"])
+            elif tag["header_signature"] == "bTRC":
+                dout["blue_trc"] = " ".join(str(n) for n in tag["parameters"])
+            else:
+                print(f"warning: need to support {header_signature}")
+        return dout
 
 
 def parse_icc_profile(infile, force_version_number, debug):
@@ -1220,6 +1419,35 @@ def get_options(argv):
         % (" [default]" if not default_values["as_one_line"] else ""),
     )
     parser.add_argument(
+        "--json",
+        dest="json",
+        action="store_true",
+        default=default_values["json"],
+        help="Diff output in scriptable mode (1 JSON line)%s"
+        % (" [default]" if default_values["json"] else ""),
+    )
+    parser.add_argument(
+        "--no-json",
+        dest="json",
+        action="store_false",
+        help="Diff output in non-scriptable mode%s"
+        % (" [default]" if not default_values["json"] else ""),
+    )
+    parser.add_argument(
+        "--short",
+        dest="short",
+        action="store_true",
+        default=default_values["short"],
+        help="Short JSON Version%s" % (" [default]" if default_values["short"] else ""),
+    )
+    parser.add_argument(
+        "--no-short",
+        dest="short",
+        action="store_false",
+        help="Long JSON Version%s"
+        % (" [default]" if not default_values["short"] else ""),
+    )
+    parser.add_argument(
         "--write",
         dest="write",
         action="store_true",
@@ -1273,6 +1501,13 @@ def main(argv):
         # print(profile.tostring(options.as_one_line))
         with open(options.outfile, "a") as fout:
             fout.write(profile.tostring(options.as_one_line))
+        sys.exit(0)
+    elif options.json:
+        # dump contents
+        profile_dict = profile.todict(options.short)
+        profile_json = json.dumps(profile_dict, indent=4)
+        with open(options.outfile, "a") as fout:
+            fout.write(profile_json)
         sys.exit(0)
     if options.remove_copyright:
         # remove copyrights
