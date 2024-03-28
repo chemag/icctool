@@ -467,7 +467,9 @@ class ICCTag:
             tag = getattr(cls, parser_name)(blob)
         else:
             if parser_name != "parse_None":
-                print(f'warning: no parser "{parser_name}()" for header_signature: "{header_signature}" element_signature: "{element_signature}" element_name: "{element_name}"')
+                print(
+                    f'warning: no parser "{parser_name}()" for header_signature: "{header_signature}" element_signature: "{element_signature}" element_name: "{element_name}"'
+                )
             tag = cls.parse_UnimplementedType(blob)
         # add the header info
         tag.header_signature = header_signature
@@ -708,9 +710,7 @@ class ICCTag:
         out = ""
         out += f'{prefix}element_signature: "{self.element_signature}"'
         out += f"{prefix}reserved: {self.reserved}"
-        out += (
-            f'{prefix}text: "{escape_string(self.text)}"'
-        )
+        out += f'{prefix}text: "{escape_string(self.text)}"'
         return out
 
     def tostring_curveType(self, tabsize):
@@ -783,7 +783,7 @@ class ICCTag:
         out += f"{prefix}numbers {{"
         tabsize += 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
-        for (cie_x, cie_y, cie_z) in self.numbers:
+        for cie_x, cie_y, cie_z in self.numbers:
             out += f"{prefix}({self.tostring_s15Fixed16Number(cie_x)}, {self.tostring_s15Fixed16Number(cie_y)}, {self.tostring_s15Fixed16Number(cie_z)}),"
         tabsize -= 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
@@ -914,7 +914,7 @@ class ICCTag:
             self.reserved,
         )
         numbers_format = "!hH"
-        for (cie_x, cie_y, cie_z) in self.numbers:
+        for cie_x, cie_y, cie_z in self.numbers:
             tag += struct.pack(numbers_format, *cie_x)
             tag += struct.pack(numbers_format, *cie_y)
             tag += struct.pack(numbers_format, *cie_z)
@@ -1070,7 +1070,7 @@ def remove_copyright(profile, debug):
     # 1. look for copyrightTag elements ("cprt") in the tag table
     new_tag_table = []
     offset_removal_list = []
-    for (signature, offset) in profile.tag_table:
+    for signature, offset in profile.tag_table:
         if signature == "cprt":
             offset_removal_list.append(offset)
         else:
@@ -1110,7 +1110,7 @@ def write_icc_profile(profile, outfile, debug):
     ), "error: invalid tag count ({profile.tag_count} != {len(profile.tag_table)})"
     tag_table_bytes = struct.pack("!I", profile.tag_count)
     tag_table_size = 4 + 12 * profile.tag_count
-    for (signature, in_offset) in profile.tag_table:
+    for signature, in_offset in profile.tag_table:
         offset_out, size = offset_dict[in_offset]
         offset = header_size + tag_table_size + offset_out
         tag_entry_format = "!" + str(len(signature)) + "s" + "I" + "I"  # offset  # size
