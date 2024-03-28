@@ -1030,7 +1030,16 @@ class ICCProfile:
                 element_blob,
                 profile.header,
             )
-            profile.elements[header_offset] = tag
+            if header_offset in profile.elements:
+                if isinstance(profile.elements[header_offset], list):
+                    profile.elements[header_offset].append(tag)
+                else:
+                    profile.elements[header_offset] = [
+                        profile.elements[header_offset],
+                        tag,
+                    ]
+            else:
+                profile.elements[header_offset] = tag
         return profile
 
     def size(self):
@@ -1051,7 +1060,11 @@ class ICCProfile:
         out += self.header.tostring(tabsize)
         out += f"{prefix}tag_count: {self.tag_count}"
         for _, element in self.elements.items():
-            out += f"{prefix}{element.tostring(tabsize).strip()}"
+            if isinstance(element, list):
+                for subelement in element:
+                    out += f"{prefix}{subelement.tostring(tabsize).strip()}"
+            else:
+                out += f"{prefix}{element.tostring(tabsize).strip()}"
         return out.strip()
 
 
