@@ -657,15 +657,21 @@ class ICCTag:
         # read the XYZ numbers
         tag.numbers = []
         while i < len(blob):
-            # s15Fixed16Number
-            cie_x = cls.parse_s15Fixed16Number(blob[i : i + 4])
-            i += 4
-            cie_y = cls.parse_s15Fixed16Number(blob[i : i + 4])
-            i += 4
-            cie_z = cls.parse_s15Fixed16Number(blob[i : i + 4])
-            i += 4
-            tag.numbers.append((cie_x, cie_y, cie_z))
+            tag.numbers.append((cls.parse_XYZNumber(blob[i:])))
+            i += 12
         return tag
+
+    @classmethod
+    def parse_XYZNumber(cls, blob):
+        # s15Fixed16Number
+        i = 0
+        cie_x = cls.parse_s15Fixed16Number(blob[i : i + 4])
+        i += 4
+        cie_y = cls.parse_s15Fixed16Number(blob[i : i + 4])
+        i += 4
+        cie_z = cls.parse_s15Fixed16Number(blob[i : i + 4])
+        i += 4
+        return cie_x, cie_y, cie_z
 
     @classmethod
     def parse_multiLocalizedUnicodeType(cls, blob):
@@ -889,27 +895,32 @@ class ICCTag:
         out += f"{prefix}numbers {{"
         tabsize += 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
-        for cie_x, cie_y, cie_z in self.numbers:
-            out += f"{prefix}({self.tostring_s15Fixed16Number(cie_x)}, {self.tostring_s15Fixed16Number(cie_y)}, {self.tostring_s15Fixed16Number(cie_z)}),"
-        tabsize -= 0 if tabsize == -1 else 1
-        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
-        out += f"{prefix}}}"
+        for xyz_number in self.numbers:
+            out += f"{prefix}({self.str_XYZNumber(xyz_number)}),"
         return out
+
+    @classmethod
+    def str_XYZNumber(cls, xyz_number):
+        cie_x, cie_y, cie_z = xyz_number
+        return f"{cls.tostring_s15Fixed16Number(cie_x)} {cls.tostring_s15Fixed16Number(cie_y)} {cls.tostring_s15Fixed16Number(cie_z)}"
 
     def todict_XYZType(self):
         d = {}
         d["element_signature"] = self.element_signature
         d["reserved"] = self.reserved
         d["numbers"] = []
-        for cie_x, cie_y, cie_z in self.numbers:
-            d["numbers"].append(
-                (
-                    self.tostring_s15Fixed16Number(cie_x),
-                    self.tostring_s15Fixed16Number(cie_y),
-                    self.tostring_s15Fixed16Number(cie_z),
-                )
-            )
+        for xyz_number in self.numbers:
+            d["numbers"].append((self.todict_XYZNumber(xyz_number)))
         return d
+
+    @classmethod
+    def todict_XYZNumber(cls, xyz_number):
+        cie_x, cie_y, cie_z = xyz_number
+        return (
+            cls.tostring_s15Fixed16Number(cie_x),
+            cls.tostring_s15Fixed16Number(cie_y),
+            cls.tostring_s15Fixed16Number(cie_z),
+        )
 
     def tostring_s15Fixed16ArrayType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
@@ -1054,11 +1065,16 @@ class ICCTag:
             self.element_signature.encode("ascii"),
             self.reserved,
         )
+        for xyz_number in self.numbers:
+            tag += self.pack_XYZNumber(xyz_number)
+        return tag
+
+    def pack_XYZNumber(self, xyz_number):
         numbers_format = "!hH"
-        for cie_x, cie_y, cie_z in self.numbers:
-            tag += struct.pack(numbers_format, *cie_x)
-            tag += struct.pack(numbers_format, *cie_y)
-            tag += struct.pack(numbers_format, *cie_z)
+        cie_x, cie_y, cie_z = xyz_number
+        tag += struct.pack(numbers_format, *cie_x)
+        tag += struct.pack(numbers_format, *cie_y)
+        tag += struct.pack(numbers_format, *cie_z)
         return tag
 
     def pack_multiLocalizedUnicodeType(self):
