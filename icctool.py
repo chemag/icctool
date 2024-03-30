@@ -469,6 +469,7 @@ TAG_ELEMENT_TABLE = (
     ("s15Fixed16ArrayType", "sf32"),
     ("curveType", "curv"),
     ("parametricCurveType", "para"),
+    ("chromaticityType", "chrm"),
 )
 
 
@@ -585,6 +586,28 @@ class ICCTag:
         return tag
 
     @classmethod
+    def parse_chromaticityType(cls, blob):
+        tag = ICCTag()
+        tag.element_size = len(blob)
+        i = 0
+        tag.element_signature = blob[i : i + 4].decode("ascii")
+        i += 4
+        tag.reserved = struct.unpack(">I", blob[i : i + 4])[0]
+        i += 4
+        tag.num_device_channels = struct.unpack(">H", blob[i : i + 2])[0]
+        i += 2
+        tag.phosphor_colorant_type = struct.unpack(">H", blob[i : i + 2])[0]
+        i += 2
+        tag.cie_xy_coordinates = []
+        for _ in range(tag.num_device_channels):
+            cie_xy_coordinate_x = cls.parse_u16Fixed16Number(blob[i : i + 4])
+            i += 4
+            cie_xy_coordinate_y = cls.parse_u16Fixed16Number(blob[i : i + 4])
+            i += 4
+            tag.cie_xy_coordinates.append((cie_xy_coordinate_x, cie_xy_coordinate_y))
+        return tag
+
+    @classmethod
     def parse_curveType(cls, blob):
         tag = ICCTag()
         tag.element_size = len(blob)
@@ -596,7 +619,7 @@ class ICCTag:
         tag.curve_count = struct.unpack(">I", blob[i : i + 4])[0]
         i += 4
         tag.curve_value = []
-        for curve_index in range(tag.curve_count):
+        for _ in range(tag.curve_count):
             tag.curve_value.append(struct.unpack(">H", blob[i : i + 2])[0])
             i += 2
         return tag
@@ -638,9 +661,17 @@ class ICCTag:
     def parse_s15Fixed16Number(cls, blob):
         # get the s15Fixed part
         s15Fixed = struct.unpack(">h", blob[0:2])[0]
-        # get the s16Frac part
-        s16Frac = struct.unpack(">H", blob[2:4])[0]
-        return (s15Fixed, s16Frac)
+        # get the u16Frac part
+        u16Frac = struct.unpack(">H", blob[2:4])[0]
+        return (s15Fixed, u16Frac)
+
+    @classmethod
+    def parse_u16Fixed16Number(cls, blob):
+        # get the u16Fixed part
+        u16Fixed = struct.unpack(">H", blob[0:2])[0]
+        # get the u16Frac part
+        u16Frac = struct.unpack(">H", blob[2:4])[0]
+        return (u16Fixed, u16Frac)
 
     @classmethod
     def parse_XYZType(cls, blob):
@@ -783,6 +814,28 @@ class ICCTag:
         d["text"] = escape_string(self.text)
         return d
 
+    def tostring_chromaticityType(self, tabsize):
+        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+        out = ""
+        out += f'{prefix}element_signature: "{self.element_signature}"'
+        out += f"{prefix}reserved: {self.reserved}"
+        out += f"{prefix}num_device_channels: {self.num_device_channels}"
+        out += f"{prefix}phosphor_colorant_type: {self.phosphor_colorant_type}"
+        for i, (cie_xy_coordinate_x, cie_xy_coordinate_y) in enumerate(
+            self.cie_xy_coordinates
+        ):
+            out += f"{prefix}cie_cy_coordinates_channel_{i}: ({self.tofloat_u16Fixed16Number(cie_xy_coordinate_x)}, {self.tofloat_u16Fixed16Number(cie_xy_coordinate_y)})"
+        return out
+
+    def todict_chromaticityType(self):
+        d = {}
+        d["element_signature"] = self.element_signature
+        d["reserved"] = self.reserved
+        d["num_device_channels"] = self.num_device_channels
+        d["phosphor_colorant_type"] = self.phosphor_colorant_type
+        d["cie_xy_coordinates"] = self.cie_xy_coordinates
+        return d
+
     def tostring_curveType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
@@ -882,10 +935,16 @@ class ICCTag:
         return d
 
     @classmethod
-    def tostring_s15Fixed16Number(cls, s15Fixed16Number):
+    def tofloat_s15Fixed16Number(cls, s15Fixed16Number):
         s15Fixed = s15Fixed16Number[0]
-        s16Frac = s15Fixed16Number[1]
-        return s15Fixed + (s16Frac / 65536.0)
+        u16Frac = s15Fixed16Number[1]
+        return s15Fixed + (u16Frac / 65536.0)
+
+    @classmethod
+    def tofloat_u16Fixed16Number(cls, u16Fixed16Number):
+        u16Fixed = u16Fixed16Number[0]
+        u16Frac = u16Fixed16Number[1]
+        return u16Fixed + (u16Frac / 65536.0)
 
     def tostring_XYZType(self, tabsize):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
@@ -902,7 +961,7 @@ class ICCTag:
     @classmethod
     def str_XYZNumber(cls, xyz_number):
         cie_x, cie_y, cie_z = xyz_number
-        return f"{cls.tostring_s15Fixed16Number(cie_x)} {cls.tostring_s15Fixed16Number(cie_y)} {cls.tostring_s15Fixed16Number(cie_z)}"
+        return f"{cls.tofloat_s15Fixed16Number(cie_x)} {cls.tofloat_s15Fixed16Number(cie_y)} {cls.tofloat_s15Fixed16Number(cie_z)}"
 
     def todict_XYZType(self):
         d = {}
@@ -917,9 +976,9 @@ class ICCTag:
     def todict_XYZNumber(cls, xyz_number):
         cie_x, cie_y, cie_z = xyz_number
         return (
-            cls.tostring_s15Fixed16Number(cie_x),
-            cls.tostring_s15Fixed16Number(cie_y),
-            cls.tostring_s15Fixed16Number(cie_z),
+            cls.tofloat_s15Fixed16Number(cie_x),
+            cls.tofloat_s15Fixed16Number(cie_y),
+            cls.tofloat_s15Fixed16Number(cie_z),
         )
 
     def tostring_s15Fixed16ArrayType(self, tabsize):
@@ -931,7 +990,7 @@ class ICCTag:
         tabsize += 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         for number in self.numbers:
-            out += f"{prefix}{self.tostring_s15Fixed16Number(number)},"
+            out += f"{prefix}{self.tofloat_s15Fixed16Number(number)},"
         tabsize -= 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out += f"{prefix}}}"
@@ -943,7 +1002,7 @@ class ICCTag:
         d["reserved"] = self.reserved
         d["numbers"] = []
         for number in self.numbers:
-            d["numbers"].append(self.tostring_s15Fixed16Number(number))
+            d["numbers"].append(self.tofloat_s15Fixed16Number(number))
         return d
 
     def tostring_parametricCurveType(self, tabsize):
@@ -957,7 +1016,7 @@ class ICCTag:
         tabsize += 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         for number in self.parameters:
-            out += f"{prefix}{self.tostring_s15Fixed16Number(number)},"
+            out += f"{prefix}{self.tofloat_s15Fixed16Number(number)},"
         tabsize -= 0 if tabsize == -1 else 1
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out += f"{prefix}}}"
@@ -971,7 +1030,7 @@ class ICCTag:
         d["reserved2"] = self.reserved2
         d["parameters"] = []
         for number in self.parameters:
-            d["parameters"].append(self.tostring_s15Fixed16Number(number))
+            d["parameters"].append(self.tofloat_s15Fixed16Number(number))
         return d
 
     # element packers
@@ -992,6 +1051,38 @@ class ICCTag:
             self.element_signature.encode("ascii"),
             self.reserved,
             self.text.encode("ascii"),
+        )
+        return tag
+
+    def pack_chromaticityType(self):
+        # element_signature
+        tag_format = "!" + str(len(self.element_signature)) + "s"
+        # reserved
+        tag_format += "I"
+        # num_device_channels
+        tag_format += "H"
+        # phosphor_colorant_type
+        tag_format += "H"
+        tag = struct.pack(
+            tag_format,
+            self.element_signature.encode("ascii"),
+            self.reserved,
+            self.num_device_channels,
+            self.phosphor_colorant_type,
+        )
+        for cie_xy_coordinate in self.cie_xy_coordinates:
+            tag += self.pack_u16Fixed16Number(number)
+        return tag
+
+    def pack_u16Fixed16Number(cls, u16Fixed16Number):
+        tag_format += "H" * self.num_device_channels
+        tag = struct.pack(
+            tag_format,
+            self.element_signature.encode("ascii"),
+            self.reserved,
+            self.num_device_channels,
+            self.phosphor_colorant_type,
+            *self.cie_xy_coordinates,
         )
         return tag
 
@@ -1123,6 +1214,22 @@ class ICCTag:
             )
         # keep the remaining buffer
         tag += self.rem
+        return tag
+
+    @classmethod
+    def pack_s15Fixed16Number(cls, s15Fixed16Number):
+        s15Fixed = s15Fixed16Number[0]
+        u16Frac = s15Fixed16Number[1]
+        numbers_format = "!hH"
+        tag = struct.pack(numbers_format, s15Fixed, u16Frac)
+        return tag
+
+    @classmethod
+    def pack_u16Fixed16Number(cls, u16Fixed16Number):
+        u16Fixed = u16Fixed16Number[0]
+        u16Frac = u16Fixed16Number[1]
+        numbers_format = "!HH"
+        tag = struct.pack(numbers_format, s15Fixed, u16Frac)
         return tag
 
     def pack_s15Fixed16ArrayType(self):
@@ -1294,7 +1401,22 @@ class ICCProfile:
                 elif tag["element_signature"] == "curv":
                     dout["blue_trc"] = " ".join(str(n) for n in tag["curve_value"])
             elif tag["header_signature"] == "chrm":
-                dout["chromaticity"] = tag["remaining"]
+                dout["chromaticity_channels"] = tag["num_device_channels"]
+                dout["chromaticity_phosphor_colorant_type"] = tag[
+                    "phosphor_colorant_type"
+                ]
+                for i, (cie_xy_coordinate_x, cie_xy_coordinate_y) in enumerate(
+                    tag["cie_xy_coordinates"]
+                ):
+                    x = (ICCTag.tofloat_u16Fixed16Number(cie_xy_coordinate_x),)
+                    y = (ICCTag.tofloat_u16Fixed16Number(cie_xy_coordinate_y),)
+                    dout[f"chromaticity_channels_{i}"] = " ".join(
+                        (
+                            str(ICCTag.tofloat_u16Fixed16Number(cie_xy_coordinate_x)),
+                            str(ICCTag.tofloat_u16Fixed16Number(cie_xy_coordinate_y)),
+                        )
+                    )
+                dout["chromaticity_channels"] = tag["num_device_channels"]
             elif tag["header_signature"] == "dmdd":
                 dout["device_model_desc"] = tag["ascii_invariant_description"]
             elif tag["header_signature"] == "dmnd":
