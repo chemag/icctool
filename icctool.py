@@ -177,7 +177,7 @@ class ICCHeader:
         i += 8
         header.rendering_intent = struct.unpack(">I", blob[i : i + 4])[0]
         i += 4
-        header.xyz_illuminant = blob[i : i + 12]
+        header.xyz_illuminant = ICCTag.parse_XYZNumber(blob[i : i + 12])
         i += 12
         header.profile_creator_field = struct.unpack(">I", blob[i : i + 4])[0]
         i += 4
@@ -205,7 +205,7 @@ class ICCHeader:
             f"{prefix}device_model: {self.device_model}"
             f"{prefix}device_attributes: {self.device_attributes}"
             f"{prefix}rendering_intent: {self.rendering_intent}"
-            f"{prefix}xyz_illuminant: {self.xyz_illuminant}"
+            f"{prefix}xyz_illuminant: {ICCTag.str_XYZNumber(self.xyz_illuminant)}"
             f"{prefix}profile_creator_field: {self.profile_creator_field}"
             f"{prefix}profile_id: {self.profile_id}"
             f"{prefix}reserved: {self.reserved}"
@@ -227,7 +227,7 @@ class ICCHeader:
         d["device_model"] = self.device_model
         d["device_attributes"] = escape_bin(self.device_attributes)
         d["rendering_intent"] = self.rendering_intent
-        d["xyz_illuminant"] = escape_bin(self.xyz_illuminant)
+        d["xyz_illuminant"] = ICCTag.str_XYZNumber(self.xyz_illuminant)
         d["profile_creator_field"] = self.profile_creator_field
         d["profile_id"] = escape_bin(self.profile_id)
         d["reserved"] = escape_bin(self.reserved)
