@@ -1277,6 +1277,14 @@ class ICCProfile:
         "abst": "Abstract profile",
         "nmcl": "Named colour profile",
     }
+    # Table 36
+    PHOSPHOR_OR_COLORANT_TYPE = {
+        0: "unknown",
+        1: "ITU-R BT.709",
+        2: "SMPTE RP145-1994",
+        3: "EBU Tech.3213-E",
+        4: "P22",
+    }
 
     @classmethod
     def parse(cls, blob, force_version_number):
@@ -1406,8 +1414,8 @@ class ICCProfile:
                     dout["blue_trc"] = " ".join(str(n) for n in tag["curve_value"])
             elif tag["header_signature"] == "chrm":
                 dout["chromaticity_channels"] = tag["num_device_channels"]
-                dout["chromaticity_phosphor_colorant_type"] = tag[
-                    "phosphor_colorant_type"
+                dout["chromaticity_phosphor_colorant_type"] = PHOSPHOR_OR_COLORANT_TYPE[
+                    tag["phosphor_colorant_type"]
                 ]
                 for i, (cie_xy_coordinate_x, cie_xy_coordinate_y) in enumerate(
                     tag["cie_xy_coordinates"]
