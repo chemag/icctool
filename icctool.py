@@ -1272,6 +1272,10 @@ class ICCProfile:
         "scnr": "Input Device Profile",
         "mntr": "Display Device Profile",
         "prtr": "Output Device Profile",
+        "link": "DeviceLink profile",
+        "spac": "ColorSpace Conversion profile",
+        "abst": "Abstract profile",
+        "nmcl": "Named colour profile",
     }
 
     @classmethod
