@@ -260,6 +260,7 @@ class ICCHeader:
             + str(len(self.device_attributes))
             + "s"
             + "I"  # rendering_intent
+            + str(len(ICCTag.pack_XYZNumber(self.xyz_illuminant)))
             + "s"  # xyz_illuminant
             + "I"  # profile_creator_field
             + str(len(self.profile_id))
@@ -292,7 +293,7 @@ class ICCHeader:
 
 
 # list including the following elements per entry:
-# (tag_name, header_signature, (list of allowed tag types))
+# (tag_name, header_signature, (list of allowed tag element types))
 TAG_HEADER_TABLE = (
     (
         "AToB0Tag",
@@ -483,84 +484,71 @@ def read_tag_element_table(table=TAG_ELEMENT_TABLE):
 
 
 class ICCTag:
-    header_table = read_tag_header_table()
     element_table = read_tag_element_table()
 
     @classmethod
-    def parse(cls, header_signature, header_offset, header_size, blob, header):
-        # check whether the tag signature is known
-        if header_signature not in cls.header_table:
-            print(f'warning: invalid tag signature: "{header_signature}"')
+    def parse(cls, blob):
         # get the element signature
         element_signature = blob[0:4].decode("ascii")
+        # check whether there is a valid parse function
         element_name = cls.element_table.get(element_signature, None)
         parser_name = f"parse_{element_name}"
-        if parser_name in dir(cls):
-            # run the element parser
-            tag = getattr(cls, parser_name)(blob)
-        else:
-            if parser_name != "parse_None":
-                print(
-                    f'warning: no parser "{parser_name}()" for header_signature: "{header_signature}" element_signature: "{element_signature}" element_name: "{element_name}"'
-                )
-            tag = cls.parse_UnimplementedType(blob)
-        # add the header info
-        tag.header_signature = header_signature
-        tag.header_offset = header_offset
-        tag.header_size = header_size
+        parser_fun = getattr(
+            cls, parser_name if parser_name in dir(cls) else "parse_UnimplementedType"
+        )
+        # run the element parser
+        tag = parser_fun(blob)
+        if parser_name == "parse_UnimplementedType":
+            print(
+                f'warning: no parser "{parser_name}()" for element_signature: "{element_signature}"'
+            )
         return tag
 
-    def tostring(self, tabsize):
+    def tostring(self, tabsize, as_one_line):
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
-        out = f"{prefix}tag {{"
-        tabsize += 0 if tabsize == -1 else 1
-        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
-        out += f'{prefix}header_signature: "{self.header_signature}"'
-        out += f"{prefix}header_offset: 0x{self.header_offset:x}"
-        out += f"{prefix}header_size: {self.header_size}"
-        # check whether there is a valid print function
+        # check whether there is a valid tostring function
         element_name = self.element_table.get(self.element_signature, None)
-        printer_name = f"tostring_{element_name}"
-        if printer_name in dir(self):
-            # run the element printer
-            out += prefix + getattr(self, printer_name)(tabsize).strip()
-        else:
-            if printer_name != "tostring_None":
-                print(f'warning: no printer for tag element: "{element_name}"')
-            out += prefix + self.tostring_UnimplementedType(tabsize).strip()
-        tabsize -= 0 if tabsize == -1 else 1
-        prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
-        out += f"{prefix}}}"
-        return out
+        tostring_name = f"tostring_{element_name}"
+        tostring_fun = getattr(
+            self,
+            (
+                tostring_name
+                if tostring_name in dir(self)
+                else "tostring_UnimplementedType"
+            ),
+        )
+        # run the element tostring
+        out = prefix + tostring_fun(tabsize).strip()
+        if tostring_name == "tostring_UnimplementedType":
+            print(f'warning: no tostring "{tostring_name}()"')
+        return out.strip()
 
     def todict(self):
         d = {}
-        d["header_signature"] = self.header_signature
-        d["header_offset"] = self.header_offset
-        d["header_size"] = self.header_size
-        # check whether there is a valid print function
+        # check whether there is a valid todict function
         element_name = self.element_table.get(self.element_signature, None)
-        printer_name = f"todict_{element_name}"
-        if printer_name in dir(self):
-            # run the element printer
-            d.update(getattr(self, printer_name)())
-        else:
-            if printer_name != "todict_None":
-                print(f'warning: no printer for tag element: "{element_name}"')
-            d.update(self.todict_UnimplementedType())
+        todict_name = f"todict_{element_name}"
+        todict_fun = getattr(
+            self,
+            todict_name if todict_name in dir(self) else "todict_UnimplementedType",
+        )
+        # run the element todict
+        d.update(todict_fun())
+        if todict_name == "todict_UnimplementedType":
+            print(f'warning: no todict "{todict_name}()"')
         return d
 
     def pack(self):
         # check whether there is a valid pack function
         element_name = self.element_table.get(self.element_signature, None)
         pack_name = f"pack_{element_name}"
-        if pack_name in dir(self):
-            # run the element packer
-            return getattr(self, pack_name)()
-        else:
-            if pack_name != "pack_None":
-                print(f'warning: no packer for tag element: "{element_name}"')
-            return self.pack_UnimplementedType()
+        pack_fun = getattr(
+            self, pack_name if pack_name in dir(self) else "pack_UnimplementedType"
+        )
+        # run the element pack
+        if pack_name == "pack_UnimplementedType":
+            print(f'warning: no pack "{pack_name}()"')
+        return pack_fun()
 
     # element parsers
     @classmethod
@@ -1069,8 +1057,9 @@ class ICCTag:
             self.num_device_channels,
             self.phosphor_colorant_type,
         )
-        for cie_xy_coordinate in self.cie_xy_coordinates:
-            tag += self.pack_u16Fixed16Number(number)
+        for cie_xy_coordinate_x, cie_xy_coordinate_y in self.cie_xy_coordinates:
+            tag += self.pack_u16Fixed16Number(cie_xy_coordinate_x)
+            tag += self.pack_u16Fixed16Number(cie_xy_coordinate_y)
         return tag
 
     def pack_u16Fixed16Number(cls, u16Fixed16Number):
@@ -1229,7 +1218,7 @@ class ICCTag:
         u16Fixed = u16Fixed16Number[0]
         u16Frac = u16Fixed16Number[1]
         numbers_format = "!HH"
-        tag = struct.pack(numbers_format, s15Fixed, u16Frac)
+        tag = struct.pack(numbers_format, u16Fixed, u16Frac)
         return tag
 
     def pack_s15Fixed16ArrayType(self):
@@ -1241,7 +1230,7 @@ class ICCTag:
         )
         numbers_format = "!hH"
         for number in self.numbers:
-            tag += struct.pack(numbers_format, *number)
+            tag += self.pack_s15Fixed16Number(number)
         return tag
 
     def pack_parametricCurveType(self):
@@ -1286,43 +1275,42 @@ class ICCProfile:
         4: "P22",
     }
 
+    header_signature_table = read_tag_header_table()
+
     @classmethod
     def parse(cls, blob, force_version_number):
-        # parse header
+        # 1. parse header
         profile = ICCProfile()
         profile.header, i = ICCHeader.parse(blob, force_version_number)
-        # parse tag table
+        # 2. parse tag table
         profile.tag_count = struct.unpack(">I", blob[i : i + 4])[0]
         i += 4
         profile.tag_table = []
         profile.elements = {}
         for tag_index in range(profile.tag_count):
+            # parse tag header
             header_signature = blob[i : i + 4].decode("ascii")
+            # check whether the tag signature is known
+            if header_signature not in cls.header_signature_table:
+                print(f'warning: invalid tag signature: "{header_signature}"')
             i += 4
             header_offset = struct.unpack(">I", blob[i : i + 4])[0]
             i += 4
             header_size = struct.unpack(">I", blob[i : i + 4])[0]
             i += 4
+            profile.tag_table.append((header_signature, header_offset, header_size))
+        # 3. parse tag elements
+        profile.elements = {}
+        for _, header_offset, header_size in profile.tag_table:
+            # check whether the tag has already been pointed by other tag
+            # header
+            if header_offset in profile.elements:
+                continue
             # parse tagged element data
             element_blob = blob[header_offset : header_offset + header_size]
-            profile.tag_table.append((header_signature, header_offset))
-            tag = ICCTag.parse(
-                header_signature,
-                header_offset,
-                header_size,
-                element_blob,
-                profile.header,
-            )
-            if header_offset in profile.elements:
-                if isinstance(profile.elements[header_offset], list):
-                    profile.elements[header_offset].append(tag)
-                else:
-                    profile.elements[header_offset] = [
-                        profile.elements[header_offset],
-                        tag,
-                    ]
-            else:
-                profile.elements[header_offset] = tag
+            tag = ICCTag.parse(element_blob)
+            # store element data
+            profile.elements[header_offset] = tag
         return profile
 
     def size(self):
@@ -1340,26 +1328,38 @@ class ICCProfile:
         tabsize = -1 if as_one_line else 0
         prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
         out = ""
+        # 1. write header
         out += self.header.tostring(tabsize)
         out += f"{prefix}tag_count: {self.tag_count}"
-        for _, element in self.elements.items():
-            if isinstance(element, list):
-                for subelement in element:
-                    out += f"{prefix}{subelement.tostring(tabsize).strip()}"
-            else:
-                out += f"{prefix}{element.tostring(tabsize).strip()}"
+        for header_signature, header_offset, header_size in self.tag_table:
+            out += f"{prefix}tag {{"
+            tabsize += 0 if tabsize == -1 else 1
+            prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+            # 2. write tag header
+            out += f'{prefix}header_signature: "{header_signature}"'
+            out += f"{prefix}header_offset: 0x{header_offset:x}"
+            out += f"{prefix}header_size: {header_size}"
+            # 3. write tag element
+            out += f"{prefix}"
+            out += self.elements[header_offset].tostring(tabsize, as_one_line)
+            tabsize -= 0 if tabsize == -1 else 1
+            prefix = " " if tabsize == -1 else ("\n" + TABSTR * tabsize)
+            out += f"{prefix}}}"
         return out.strip()
 
     def todict(self, short=False):
         d = {}
+        # 1. write header
         d.update(self.header.todict())
         d["tag"] = []
-        for _, element in self.elements.items():
-            if isinstance(element, list):
-                for subelement in element:
-                    d["tag"].append(subelement.todict())
-            else:
-                d["tag"].append(element.todict())
+        for header_signature, header_offset, _ in self.tag_table:
+            # 2. write tag header
+            tag = {
+                "header_signature": header_signature,
+                "header_offset": header_offset,
+            }
+            tag.update(self.elements[header_offset].todict())
+            d["tag"].append(tag)
         if short:
             d = self.reduce_info(d)
         return d
@@ -1414,9 +1414,9 @@ class ICCProfile:
                     dout["blue_trc"] = " ".join(str(n) for n in tag["curve_value"])
             elif tag["header_signature"] == "chrm":
                 dout["chromaticity_channels"] = tag["num_device_channels"]
-                dout["chromaticity_phosphor_colorant_type"] = PHOSPHOR_OR_COLORANT_TYPE[
-                    tag["phosphor_colorant_type"]
-                ]
+                dout["chromaticity_phosphor_colorant_type"] = (
+                    self.PHOSPHOR_OR_COLORANT_TYPE[tag["phosphor_colorant_type"]]
+                )
                 for i, (cie_xy_coordinate_x, cie_xy_coordinate_y) in enumerate(
                     tag["cie_xy_coordinates"]
                 ):
@@ -1453,18 +1453,18 @@ def remove_copyright(profile, debug):
     # 1. look for copyrightTag elements ("cprt") in the tag table
     new_tag_table = []
     offset_removal_list = []
-    for signature, offset in profile.tag_table:
-        if signature == "cprt":
-            offset_removal_list.append(offset)
+    for header_signature, header_offset, _ in profile.tag_table:
+        if header_signature == "cprt":
+            offset_removal_list.append(header_offset)
         else:
-            new_tag_table.append((signature, offset))
+            new_tag_table.append((header_signature, header_offset))
     profile.tag_table = new_tag_table
     profile.tag_count -= len(offset_removal_list)
     tag_table_savings = 4 * len(offset_removal_list)
     # 2. ensure the elements in the offset removal list are not used anymore
     final_offset_removal_list = []
     for offset_candidate in offset_removal_list:
-        if offset_candidate in (offset for (offset, _) in profile.tag_table):
+        if offset_candidate in (offset for (_, offset, _) in profile.tag_table):
             # offset is still used
             continue
         final_offset_removal_list.append(offset_candidate)
@@ -1493,13 +1493,15 @@ def write_icc_profile(profile, outfile, debug):
     ), "error: invalid tag count ({profile.tag_count} != {len(profile.tag_table)})"
     tag_table_bytes = struct.pack("!I", profile.tag_count)
     tag_table_size = 4 + 12 * profile.tag_count
-    for signature, in_offset in profile.tag_table:
+    for header_signature, in_offset, _ in profile.tag_table:
         offset_out, size = offset_dict[in_offset]
         offset = header_size + tag_table_size + offset_out
-        tag_entry_format = "!" + str(len(signature)) + "s" + "I" + "I"  # offset  # size
+        tag_entry_format = (
+            "!" + str(len(header_signature)) + "s" + "I" + "I"
+        )  # offset  # size
         tag_table_bytes += struct.pack(
             tag_entry_format,
-            signature.encode("ascii"),
+            header_signature.encode("ascii"),
             offset,
             size,
         )
@@ -1508,9 +1510,8 @@ def write_icc_profile(profile, outfile, debug):
     profile.header.profile_size = len(total_bytes)
     header_bytes = profile.header.pack()
     total_bytes = header_bytes + tag_table_bytes + elements_bytes
-
     # 5. write back the full profile
-    with open(outfile, "wb+") as fout:
+    with open(outfile, "wb") as fout:
         fout.write(total_bytes)
 
 
