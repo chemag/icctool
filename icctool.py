@@ -260,8 +260,7 @@ class ICCHeader:
             + str(len(self.device_attributes))
             + "s"
             + "I"  # rendering_intent
-            + str(len(self.xyz_illuminant))
-            + "s"
+            + "s"  # xyz_illuminant
             + "I"  # profile_creator_field
             + str(len(self.profile_id))
             + "s"
@@ -284,7 +283,7 @@ class ICCHeader:
             self.device_model,
             self.device_attributes,
             self.rendering_intent,
-            self.xyz_illuminant,
+            ICCTag.pack_XYZNumber(self.xyz_illuminant),
             self.profile_creator_field,
             self.profile_id,
             self.reserved,
@@ -1160,10 +1159,11 @@ class ICCTag:
             tag += self.pack_XYZNumber(xyz_number)
         return tag
 
-    def pack_XYZNumber(self, xyz_number):
+    @classmethod
+    def pack_XYZNumber(cls, xyz_number):
         numbers_format = "!hH"
         cie_x, cie_y, cie_z = xyz_number
-        tag += struct.pack(numbers_format, *cie_x)
+        tag = struct.pack(numbers_format, *cie_x)
         tag += struct.pack(numbers_format, *cie_y)
         tag += struct.pack(numbers_format, *cie_z)
         return tag
